@@ -1,0 +1,51 @@
+
+:root {
+	--background-color: #E6EFF4;
+	--text-color: black;
+	--link-color: #0645ad;
+	--link-color-hover: #0645ad;
+	--link-color-active: #faa700;
+}
+
+.dark-theme {
+	--background-color: #2B2F39;
+	--text-color: white;
+	--link-color: #6f9fff;
+	--link-color-hover: #447ff5;
+	--link-color-active: #faa700;
+}
+
+body {
+	font-family: Monocraft;
+    margin: 0;
+	padding: 0;
+    background-color: #111;
+	color: var(--text-color);
+    text-align: left;
+}
+
+main {
+    background-color: var(--background-color);
+	transition: background-color 0.2s ease, color 0.2s ease;
+    padding: 0 20px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 20px 0;
+    padding: 0 15px;
+}
+
+a:link, a:visited {
+	color: var(--link-color);
+	text-decoration: none;
+}
+
+a:hover {
+	color: var(--link-color-hover);
+	text-decoration: underline;
+}
+
+a:active {
+	color: var(--link-color-active);
+	text-decoration: underline;
+}

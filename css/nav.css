@@ -1,0 +1,120 @@
+@font-face {
+    font-family: 'Monocraft';
+	src: url('/assets/fonts/Monocraft.woff2') format('woff2'),
+         url('/assets/fonts/Monocraft.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+	font-family: Monocraft;
+	margin: 0;
+	padding: 0;
+}
+
+nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background-color: #232324;
+	border: 3px solid #444;
+	padding: 15px 20px;
+	width: 100%;
+	margin: 0 auto;
+	height: 60px;
+	box-sizing: border-box;
+	position: relative;
+}
+nav::after {
+	content: "";
+	position: absolute;
+	left: -3px;
+	width: 100vw;
+	height: 3px;
+	bottom: -6px;
+	background-color: #111;
+}
+
+nav .home img {
+	height: 45px;
+	width: auto;
+	transform: translateY(3px);
+	transition: transform 0.3s ease;
+	opacity: 1;
+}
+
+nav .home:hover img {
+	transform: translateY(2px) scale(1.1);
+}
+
+nav .home:active img {
+	transform: translateY(2px) scale(0.9);
+}
+
+nav .nav-right {
+	display: flex;
+	align-items: center;
+	margin-left: auto;
+}
+
+nav .nav-links {
+	display: flex;
+	margin-right: 20px;
+}
+
+nav .nav-links a {
+	color: white;
+	text-decoration: none;
+	font-weight: normal;
+	margin: 0 15px;
+	text-shadow: -1px 1.5px 0 black;
+	position: relative;
+}
+
+nav .nav-links a::after {
+	content: '';
+	position: absolute;
+	left: -5%;
+	bottom: -2px;
+	width: 110%;
+	height: 2px;
+	background-color: white;
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 0.3s ease;
+	pointer-events: none;
+	z-index: 1;
+	box-shadow: 0 1.5px 0 0 black;
+}
+
+nav .nav-links a:hover::after {
+	transform: scaleX(1);
+}
+
+.theme-toggle {
+	width: 45px;
+	height: 45px;
+	margin-right: 0; 
+	cursor: pointer;
+	user-select: none;
+	transition: transform 0.3s ease;
+	opacity: 1;
+	--translateY: 0px;
+	transform: translateY(var(--translateY)) scale(1);
+}
+
+#themeToggle[theme="light"] {
+	--translateY: 0px;
+}
+
+#themeToggle[theme="dark"] {
+	--translateY: -3px;
+}
+
+.theme-toggle:hover {
+	transform: translateY(var(--translateY)) scale(1.1);
+}
+
+.theme-toggle:active {
+	transform: translateY(var(--translateY)) scale(0.9);
+}

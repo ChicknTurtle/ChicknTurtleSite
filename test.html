@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<script src="/js/load-template.js"></script>
+</head>
+<body>
+	<div id="nav-container"></div>
+	<main>
+
+    <h2>test page</h2>
+    <p>test</p>
+
+	<div id="filler-text-container"></div>
+    
+	</main>
+	<div id="footer-container"></div>
+	<script src="/js/theme-toggle.js"></script>
+    <script>
+        fetch('https://raw.githubusercontent.com/imsky/wordlists/refs/heads/master/nouns/plants.txt')
+            .then(response => response.text())
+            .then(data => {
+                const formattedData = data.split('\n').join(', ');
+                document.getElementById('filler-text-container').innerText = formattedData;
+            })
+            .catch(error => console.error('Error fetching the filler text:', error));
+    </script>
+</body>
+</html>
