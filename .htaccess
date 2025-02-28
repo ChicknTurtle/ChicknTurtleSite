@@ -1,0 +1,7 @@
+<FilesMatch "\.(html|htm)$">
+    Header set Content-Type "text/html; charset=UTF-8"
+</FilesMatch>
+
+<FilesMatch "\.br$">
+    Header set Content-Encoding "br"
+</FilesMatch>
