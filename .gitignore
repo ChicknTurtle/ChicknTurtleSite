@@ -1,0 +1,6 @@
+# System files
+.DS_Store
+
+/server.cert
+/server.key
+/test.html
