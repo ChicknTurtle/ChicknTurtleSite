@@ -1,5 +1,4 @@
 document.addEventListener('navLoaded', () => {
-
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
     const userPreference = localStorage.getItem('themePreference');
@@ -18,14 +17,14 @@ document.addEventListener('navLoaded', () => {
     function toggleDarkTheme() {
         const isDark = body.classList.toggle('dark-theme');
         localStorage.setItem('themePreference', isDark ? 'dark' : 'light');
-        applyTheme(isDark)
+        applyTheme(isDark);
     }
 
     if (userPreference) {
-        applyTheme(userPreference, true);
+        applyTheme(userPreference === 'dark', true);
     } else {
         const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        applyTheme(systemPrefersDark ? 'dark' : 'light', true);
+        applyTheme(systemPrefersDark, true);
     }
 
     themeToggle.addEventListener('click', toggleDarkTheme);

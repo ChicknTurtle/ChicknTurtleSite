@@ -1,7 +1,7 @@
 #game-iframe {
     display: block;
     width: 100%;
-    height: 80vh;
+    aspect-ratio: 16 / 9;
     border: none;
     border: 2px solid #111;
     border-radius: 5px;
