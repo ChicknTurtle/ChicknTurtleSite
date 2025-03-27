@@ -1,21 +1,21 @@
 document.addEventListener('navLoaded', () => {
     const themeToggle = document.getElementById('themeToggle');
-    const body = document.body;
     const userPreference = localStorage.getItem('themePreference');
 
     function applyTheme(isDark, skipTransition = false) {
-        if (skipTransition) body.style.transition = 'none';
+        const main = document.querySelector('main');
+        main.style.transition = skipTransition ? 'none' : 'background-color 0.2s ease, color 0.2s ease';
 
-        body.classList.toggle('dark-theme', isDark);
+        document.body.classList.toggle('dark-theme', isDark);
 
         themeToggle.src = isDark ? '/assets/images/dark-theme.png' : '/assets/images/light-theme.png';
         themeToggle.setAttribute('theme', isDark ? 'dark' : 'light');
 
-        if (skipTransition) setTimeout(() => (body.style.transition = ''), 100);
+        if (skipTransition) setTimeout(() => (document.body.style.transition = ''), 100);
     }
 
     function toggleDarkTheme() {
-        const isDark = body.classList.toggle('dark-theme');
+        const isDark = document.body.classList.toggle('dark-theme');
         localStorage.setItem('themePreference', isDark ? 'dark' : 'light');
         applyTheme(isDark);
     }

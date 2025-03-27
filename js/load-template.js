@@ -1,3 +1,4 @@
+
 document.addEventListener("DOMContentLoaded", function() {
 	const navContainer = document.getElementById("nav-container");
 	const footerContainer = document.getElementById("footer-container");
