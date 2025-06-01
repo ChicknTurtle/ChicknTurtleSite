@@ -1,19 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/nav.css">
-    <link rel="stylesheet" href="/css/footer.css">
-	<script src="/js/internal/load-template.js"></script>
+  <title>ChicknTurtle.ninja</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/nav.css">
+  <link rel="stylesheet" href="/css/footer.css">
+  <script src="/js/internal/load-template.js"></script>
+  <script src="/js/internal/theme-toggle.js"></script>
+  <style>
+    main {
+      padding: 2rem;
+    }
+    .grid {
+      display: grid;
+      gap: 2rem;
+      padding: 2rem;
+      margin: 0 auto;
+      grid-template-columns: repeat(auto-fit, 220px);
+      justify-content: center;
+    }
+
+	.tile {
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+    }
+
+	.tile-thumbnail {
+      aspect-ratio: 16/9;
+      background-color: #ddd;
+      background-size: cover;
+      background-position: center;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+	  border: 3px solid #444;
+	  border-bottom: none;
+    }
+
+	.tile-title {
+      background-color: #232324;
+      border: 3px solid #444;
+      color: white;
+      font-family: Monocraft;
+      font-weight: normal;
+      text-shadow: -1px 1.5px 0 black;
+      padding: 0.5rem 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+      line-height: 1.2;
+      position: relative;
+      margin: 0;
+    }
+
+	.tile-title::after {
+		content: "";
+		position: absolute;
+		left: -3px;
+		width: calc(100% + 6px);
+		height: 3px;
+		bottom: -6px;
+		background-color: #111;
+	}
+
+	.tile-title span {
+      position: relative;
+      display: inline-block;
+      z-index: 2;
+    }
+
+    .tile-title span::after {
+      content: "";
+      position: absolute;
+      left: -5%;
+      bottom: -4px;
+      width: 110%;
+      height: 2px;
+      background-color: white;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+      box-shadow: 0 1.5px 0 0 black;
+      z-index: 3;
+    }
+    .tile:hover .tile-title span::after {
+      transform: scaleX(1);
+    }
+  </style>
 </head>
 <body>
-	<div id="nav-container"></div>
-	<main>
-
-	<p>home</p>
-		
-	</main>
-	<div id="footer-container"></div>
-	<script src="/js/internal/theme-toggle.js"></script>
+  <div id="nav-container"></div>
+  <main>
+    <div class="grid">
+	
+      <a href="/content/frog-game" class="tile">
+        <div class="tile-thumbnail" style="background-image: url('/assets/thumbnails/frog-game.png');"></div>
+        <div class="tile-title"><span>Frog Game</span></div>
+      </a>
+      <a href="/content/engine-dev" class="tile">
+        <div class="tile-thumbnail" style="background-image: url('/assets/thumbnails/engine-dev.png');"></div>
+        <div class="tile-title"><span>Engine Dev</span></div>
+      </a>
+      <a href="/content/snake" class="tile">
+        <div class="tile-thumbnail" style="background-image: url('/assets/thumbnails/snake.png');"></div>
+        <div class="tile-title"><span>Snake</span></div>
+      </a>
+	  
+    </div>
+  </main>
+  <div id="footer-container"></div>
 </body>
 </html>

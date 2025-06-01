@@ -3,16 +3,10 @@
     position: relative;
     left: -20px;
     width: 100vw;
-    aspect-ratio: 16 / 9;
+    height: 90vh;
     border: none;
     border-top: 2px solid #111;
-    border-bottom: 2px solid #111;
     outline: none;
-}
-@media (orientation: portrait) {
-    #game-iframe {
-        aspect-ratio: 9 / 16;
-    }
 }
 
 .links-container {
