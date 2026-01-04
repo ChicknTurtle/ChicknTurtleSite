@@ -231,8 +231,8 @@ var te = {
         ctx.strokeStyle = 'rgba(0,0,0,0.5)';
         ctx.lineWidth = 2;
         for (let i = 0; i < this.debugText.length; i++) {
-            ctx.strokeText(this.debugText[i], 12, i*20+30);
-            ctx.fillText(this.debugText[i], 12, i*20+30);
+            ctx.strokeText(this.debugText[i], 12, i*20+70);
+            ctx.fillText(this.debugText[i], 12, i*20+70);
         }
         ctx.restore();
     },

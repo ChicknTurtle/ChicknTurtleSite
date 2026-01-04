@@ -105,7 +105,7 @@ export function drawGame() {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
     for (let i = 0; i < lines.length; i++) {
-        ctx.strokeText(lines[i], 12, i*20+30.5);
-        ctx.fillText(lines[i], 12, i*20+30);
+        ctx.strokeText(lines[i], 12, i*20+70.5);
+        ctx.fillText(lines[i], 12, i*20+70);
     }
 }

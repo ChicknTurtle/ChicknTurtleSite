@@ -1,21 +1,26 @@
 {
-    "name": "ChicknTurtle.ninja",
-    "short_name": "ChicknTurtle",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#111",
-    "theme_color": "#111",
-    "icons": [
-      {
-        "src": "/assets/images/icon-192x.png",
-        "sizes": "192x192",
-        "type": "image/png"
-      },
-      {
-        "src": "/assets/images/icon-512x.png",
-        "sizes": "512x512",
-        "type": "image/png"
-      }
-    ]
-  }
-  
+  "name": "ChicknTurtle.ninja",
+  "short_name": "ChicknTurtle",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111",
+  "theme_color": "#111",
+  "icons": [
+    {
+      "src": "/assets/images/icon-192x-bg.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/assets/images/icon-512x-bg.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+			"src": "/assets/images/icon-512x.png",
+			"type": "image/png",
+			"sizes": "512x512",
+			"purpose": "maskable"
+		}
+  ]
+}

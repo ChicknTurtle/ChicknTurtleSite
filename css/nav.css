@@ -51,6 +51,18 @@ nav .home:active img {
 	transform: translateY(2px) scale(0.9);
 }
 
+.site-name {
+	color: white;
+	margin: 0 1rem;
+	white-space: nowrap;
+}
+
+@media (max-width: 475px) {
+	.site-name {
+		display: none;
+	}
+}
+
 nav .nav-right {
 	display: flex;
 	align-items: center;
@@ -89,6 +101,12 @@ nav .nav-links a::after {
 
 nav .nav-links a:hover::after {
 	transform: scaleX(1);
+}
+
+@media (max-width: 275px) {
+	nav .nav-links {
+		display: none;
+	}
 }
 
 .theme-toggle {

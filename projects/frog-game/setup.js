@@ -46,15 +46,12 @@ export function setupGame() {
             const height = window.innerHeight;
             const dpr = window.devicePixelRatio || 1;
         
-            // 1) set the CSS display size
             c.canvas.style.width  = width  + 'px';
             c.canvas.style.height = height + 'px';
         
-            // 2) set the internal resolution
             c.canvas.width  = Math.floor(width  * dpr);
             c.canvas.height = Math.floor(height * dpr);
         
-            // 3) reset any prior transforms, then scale once
             if (c.context.resetTransform) {
                 c.context.resetTransform();
             } else {
