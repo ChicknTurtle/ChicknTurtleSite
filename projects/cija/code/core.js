@@ -11,8 +11,6 @@ const Game = {
   mousePos: null,
   prevMousePos: null,
   mouseVel: null,
-  showCursor: false,
-  cursorSprite: new Vec2(0,0),
   inputs: {},
   inputsClicked: {},
   inputsReleased: {},

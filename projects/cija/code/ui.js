@@ -10,12 +10,12 @@ UI.drawNineSlice = function (ctx, img, spritesize, slices, pos, size, offset, sc
   const x = pos.x, y = pos.y;
   let width = size.x, height = size.y;
   const top = slices[0], right = slices[1], bottom = slices[2], left = slices[3];
-  width  -= (left * scale - left) + (right * scale - right);
-  height -= (top  * scale - top ) + (bottom * scale - bottom);
+  width -= (left * scale - left) + (right * scale - right);
+  height -= (top * scale - top) + (bottom * scale - bottom);
   if (width < left + right || height < top + bottom) return;
-  const middleWidth  = spritesize.x - left - right;
+  const middleWidth = spritesize.x - left - right;
   const middleHeight = spritesize.y - top - bottom;
-  const destMiddleWidth  = width  - left - right;
+  const destMiddleWidth = width - left - right;
   const destMiddleHeight = height - top - bottom;
   const textureX = offset.x;
   const textureY = offset.y;
@@ -105,7 +105,7 @@ UI.TextLabel = class extends UI.Element {
   constructor(pos = new Vec2(), text = '', font = '20px Pixellari', color = 'white') {
     super();
     this.pos = pos;
-    this.size = new Vec2(0,0);
+    this.size = new Vec2(0, 0);
     this.text = text;
     this.font = font;
     this.color = color;
@@ -173,10 +173,11 @@ UI.Button = class extends UI.Element {
   }
 }
 
-UI.MenuButton = class extends UI.Button {
+UI.GameButton = class extends UI.Button {
   constructor(pos = new Vec2(), size = new Vec2(200, 50), onClick = null, text = '') {
     super(pos, size, onClick);
     this.text = text;
+    this.pressedAt = 0;
   }
   tick() {
     super.tick();
@@ -184,21 +185,31 @@ UI.MenuButton = class extends UI.Button {
   draw(ctx) {
     const pos = this.screenPos || this.getScreenPos();
     ctx.imageSmoothingEnabled = false;
-    if (this.disabled) {
-      UI.drawNineSlice(ctx, Game.spritesheets['ui'], new Vec2(32, 16), [7, 6, 5, 6], pos, this.size, new Vec2(64, 0), 2);
+    let textOffset;
+    if (this.pressedAt + 4 / 60 > Game.gameTime) {
+      ctx.drawImage(Game.spritesheets['buttons'], 128, 0, 64, 32, pos.x, pos.y, this.size.x, this.size.y);
+      ctx.fillStyle = 'rgb(255,255,255)';
+      textOffset = 2;
+    } else if (this.disabled) {
+      ctx.drawImage(Game.spritesheets['buttons'], 192, 0, 64, 32, pos.x, pos.y, this.size.x, this.size.y);
+      ctx.fillStyle = 'rgb(127,127,127)';
+      textOffset = 4;
     } else if (this.hover) {
-      UI.drawNineSlice(ctx, Game.spritesheets['ui'], new Vec2(32, 16), [5, 6, 7, 6], pos, this.size, new Vec2(32, 0), 2);
+      ctx.drawImage(Game.spritesheets['buttons'], 64, 0, 64, 32, pos.x, pos.y, this.size.x, this.size.y);
+      ctx.fillStyle = 'rgb(255,255,255)';
+      textOffset = -2;
     } else {
-      UI.drawNineSlice(ctx, Game.spritesheets['ui'], new Vec2(32, 16), [5, 6, 7, 6], pos, this.size, new Vec2(0, 0), 2);
+      ctx.drawImage(Game.spritesheets['buttons'], 0, 0, 64, 32, pos.x, pos.y, this.size.x, this.size.y);
+      ctx.fillStyle = 'rgb(255,255,255)';
+      textOffset = -2;
     }
     ctx.imageSmoothingEnabled = true;
-    ctx.fillStyle = this.disabled ? 'rgb(127,127,127)' : 'rgb(255,255,255)';
     ctx.font = `30px DigitalDisco`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const c = new Text.Component(this.text);
     c.effects.shadow.pos.y = 2;
-    Text.draw(ctx, c, pos.plus(new Vec2(this.size.x / 2, this.size.y / 2 + (this.disabled ? 4 : 0))));
+    Text.draw(ctx, c, pos.plus(new Vec2(this.size.x / 2, this.size.y / 2 + textOffset)));
   }
 }
 
@@ -215,5 +226,58 @@ UI.SettingsButton = class extends UI.Button {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(Game.spritesheets['ui'], sx, 32, 16, 16, pos.x, pos.y, this.size.x, this.size.y);
 
+  }
+}
+
+UI.Meter = class extends UI.Button {
+  constructor(pos = new Vec2(), size = new Vec2(483, 30)) {
+    super();
+    this.pos = pos;
+    this.margin = new Vec2(16, 16);
+    this.size = size.plus(this.margin);
+    this.disabled = true;
+
+    this.meter = 0;
+    this.maxMeter = 300;
+    this.targetMeter = 0;
+    this.visualMeter = 0;
+  }
+  tick() {
+    const pos = this.getScreenPos();
+    this.screenPos = pos;
+
+    this.targetMeter = Math.max(this.meter / this.maxMeter, 0);
+    if (this.targetMeter > 0.99) this.targetMeter = 1.01;
+    if (this.targetMeter < 0.01) this.targetMeter = -0.01;
+    this.targetMeter = Math.min(this.targetMeter, 1.01);
+    this.visualMeter = tween(this.visualMeter, this.targetMeter, 0.99, Game.dt);
+
+    this.disabled = (this.visualMeter < 0.995);
+
+    this.updateHover();
+    this.checkClicked();
+  }
+  draw(ctx) {
+    let pos = this.screenPos || this.getScreenPos();
+
+    //ctx.fillStyle = 'red';
+    //ctx.fillRect(pos.x, pos.y, this.size.x, this.size.y);
+    //ctx.fillStyle = 'blue';
+    //ctx.fillRect(pos.x+this.margin.x/2, pos.y+this.margin.y/2, this.size.x-this.margin.x, this.size.y-this.margin.y);
+
+    pos = pos.clone().add(this.margin.times(0.5));
+    const meterWidth = 161;
+
+    ctx.imageSmoothingEnabled = false;
+    if (this.disabled == false) {
+      if (this.hover) {
+        ctx.drawImage(Game.spritesheets['meter'], 0, 30, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
+      } else {
+        ctx.drawImage(Game.spritesheets['meter'], 0, 20, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
+      }
+    } else {
+      ctx.drawImage(Game.spritesheets['meter'], 0, 0, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
+      ctx.drawImage(Game.spritesheets['meter'], 2, 10, (meterWidth - 4) * this.visualMeter, 10, pos.x + this.size.x * (2 / meterWidth), pos.y, (this.size.x-this.margin.x) * ((meterWidth - 4) / meterWidth) * this.visualMeter, this.size.y-this.margin.y);
+    }
   }
 }

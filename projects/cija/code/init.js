@@ -1,9 +1,6 @@
 
 function setCursor(type) {
-  Game.cursorSprite = {
-    'default': new Vec2(0, 0),
-    'pointer': new Vec2(32, 0),
-  }[type] || new Vec2(0, 0);
+  document.documentElement.style.cursor = `url('assets/sprites/cursors/${type}.png') 10 5, auto`;
 }
 
 function loadImage(src) {
@@ -68,8 +65,8 @@ async function init() {
     { type: 'image', src: 'assets/sprites/digits.png' },
     { type: 'image', src: 'assets/sprites/100.png' },
     { type: 'image', src: 'assets/sprites/ui.png' },
-    { type: 'image', src: 'assets/sprites/bottles.png' },
-    { type: 'image', src: 'assets/sprites/cursors.png' },
+    { type: 'image', src: 'assets/sprites/buttons.png' },
+    { type: 'image', src: 'assets/sprites/meter.png' },
     { type: 'font', name: 'Pixellari', src: 'assets/fonts/Pixellari.ttf' },
     { type: 'font', name: 'LycheeSoda', src: 'assets/fonts/LycheeSoda.ttf' },
     { type: 'font', name: 'DigitalDisco', src: 'assets/fonts/DigitalDisco.ttf' },
@@ -79,8 +76,8 @@ async function init() {
     Game.spritesheets['digits'],
     Game.spritesheets['100'],
     Game.spritesheets['ui'],
-    Game.spritesheets['bottles'],
-    Game.spritesheets['cursors'],
+    Game.spritesheets['buttons'],
+    Game.spritesheets['meter'],
     Game.fonts['Pixellari'],
     Game.fonts['LycheeSoda'],
     Game.fonts['DigitalDisco'],
@@ -164,6 +161,11 @@ function update(timestamp) {
       Game.shuffleTimeRemaining = 0;
       Game.percentage = Game.finalPercentage;
       Game.reenableButtonIn = 1;
+      if (Game.finalPercentage == 0) {
+        UI.managers.main_menu.elements['meter'].meter = 0;
+      } else {
+        UI.managers.main_menu.elements['meter'].meter += Game.finalPercentage;
+      }
     } else {
       Game.percentage = Math.floor(Math.random() * 100);
     }
@@ -180,11 +182,12 @@ function update(timestamp) {
   setCursor('default');
   if (Game.state === 'main_menu') {
     UI.managers.main_menu.show('roll_button', () => {
-      const b = new UI.MenuButton(new Vec2(0, 20), new Vec2(100, 50), () => {
+      const b = new UI.GameButton(new Vec2(0, 30), new Vec2(128, 64), () => {
         if (b.disabled) return;
         delete Game.inputs['Mouse0'];
         delete Game.inputsClicked['Mouse0'];
         b.disabled = true;
+        b.pressedAt = Game.gameTime;
 
         Game.finalPercentage = Math.floor(Math.random() * 101);
         const base = 0.5 + 3.5 * Math.pow(Math.random(), 20);
@@ -209,6 +212,15 @@ function update(timestamp) {
       t.anchor = UI.anchor('center', 'center');
       t.textAlign = 'left';
       return t;
+    });
+    UI.managers.main_menu.show('meter', () => {
+      const m = new UI.Meter(new Vec2(0, -128));
+      m.anchor = UI.anchor('center', 'center');
+      m.pivot = UI.anchor('center', 'center');
+      m.onClick = () => {
+        m.meter = 0;
+      }
+      return m;
     });
     /*UI.managers.main_menu.show('settings_button', () => {
       const b = new UI.SettingsButton(new Vec2(0, 0), new Vec2(50, 50), () => {
@@ -262,28 +274,6 @@ function draw(ctx) {
       text.effects.shadow.pos.y = 1;
       Text.draw(ctx, text, new Vec2(10, i * 20 + 20));
     }
-  }
-
-  // cursor
-  ctx.imageSmoothingEnabled = false;
-  if (Game.showCursor && Game.mousePos) {
-    const scale = 2;
-    ctx.filter = 'brightness(0%)';
-    ctx.globalAlpha = 0.5;
-    ctx.drawImage(Game.spritesheets.cursors, Game.cursorSprite.x, Game.cursorSprite.y, 32, 32,
-      Game.mousePos.x - (10 + 2) * scale / Game.dpr,
-      Game.mousePos.y - (5 - 2) * scale / Game.dpr,
-      32 * scale / Game.dpr,
-      32 * scale / Game.dpr
-    );
-    ctx.filter = 'none';
-    ctx.globalAlpha = 1.0;
-    ctx.drawImage(Game.spritesheets.cursors, Game.cursorSprite.x, Game.cursorSprite.y, 32, 32,
-      Game.mousePos.x - 10 * scale / Game.dpr,
-      Game.mousePos.y - 5 * scale / Game.dpr,
-      32 * scale / Game.dpr,
-      32 * scale / Game.dpr
-    );
   }
 }
 
