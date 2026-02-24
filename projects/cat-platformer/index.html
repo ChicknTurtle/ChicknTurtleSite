@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cat Platformer</title>
+<link rel="icon" href="/assets/icons/cat-platformer.png" type="image/png">
+<style>
+body {
+  margin: 0;
+  background-color: rgb(0,0,0);
+  overflow: hidden;
+}
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: block;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script src="code/lib.js"></script>
+<script src="code/core.js"></script>
+<script src="code/assets.js"></script>
+<script src="code/inputs.js"></script>
+<script src="code/text.js"></script>
+<script src="code/ui.js"></script>
+<script src="code/world/world.js"></script>
+<script src="code/world/utils.js"></script>
+<script src="code/player.js"></script>
+<script src="code/gameplay.js"></script>
+<script src="code/draw.js"></script>
+<script src="code/init.js"></script>
+<body onload="init()">
+</body>
+</html>
