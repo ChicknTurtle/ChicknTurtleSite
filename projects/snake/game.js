@@ -227,5 +227,4 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${game.score}  Time: ${Math.floor(game.gameTime)}`, offsetX-1,offsetY-8);
     ctx.textAlign = 'right';
-    ctx.fillText(`${game.nextDir || game.snakeDir}`, offsetX+totalGridWidth,offsetY-8);
 }
