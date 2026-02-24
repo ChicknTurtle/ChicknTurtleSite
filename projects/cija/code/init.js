@@ -67,6 +67,7 @@ async function init() {
     { type: 'image', src: 'assets/sprites/ui.png' },
     { type: 'image', src: 'assets/sprites/buttons.png' },
     { type: 'image', src: 'assets/sprites/meter.png' },
+    { type: 'image', src: 'assets/sprites/pipe.png' },
     { type: 'font', name: 'Pixellari', src: 'assets/fonts/Pixellari.ttf' },
     { type: 'font', name: 'LycheeSoda', src: 'assets/fonts/LycheeSoda.ttf' },
     { type: 'font', name: 'DigitalDisco', src: 'assets/fonts/DigitalDisco.ttf' },
@@ -78,6 +79,7 @@ async function init() {
     Game.spritesheets['ui'],
     Game.spritesheets['buttons'],
     Game.spritesheets['meter'],
+    Game.spritesheets['gacha'],
     Game.fonts['Pixellari'],
     Game.fonts['LycheeSoda'],
     Game.fonts['DigitalDisco'],
@@ -161,10 +163,13 @@ function update(timestamp) {
       Game.shuffleTimeRemaining = 0;
       Game.percentage = Game.finalPercentage;
       Game.reenableButtonIn = 1;
+      const meter = UI.managers.main_menu.elements['meter'];
       if (Game.finalPercentage == 0) {
-        UI.managers.main_menu.elements['meter'].meter = 0;
+        meter.meter = 0;
+      } else if (Game.finalPercentage == 100) {
+        meter.meter = meter.maxMeter;
       } else {
-        UI.managers.main_menu.elements['meter'].meter += Game.finalPercentage;
+        meter.meter += Game.finalPercentage;
       }
     } else {
       Game.percentage = Math.floor(Math.random() * 100);
@@ -181,6 +186,15 @@ function update(timestamp) {
   // ui
   setCursor('default');
   if (Game.state === 'main_menu') {
+    /*UI.managers.main_menu.show('gacha', () => {
+      const e = new UI.Gacha(new Vec2(0, 0));
+      e.anchor = UI.anchor('center', 'bottom');
+      e.pivot = UI.anchor('center', 'bottom');
+      e.onClick = () => {
+
+      }
+      return e;
+    });*/
     UI.managers.main_menu.show('roll_button', () => {
       const b = new UI.GameButton(new Vec2(0, 30), new Vec2(128, 64), () => {
         if (b.disabled) return;
@@ -208,7 +222,7 @@ function update(timestamp) {
       return t;
     });
     UI.managers.main_menu.show('main_text2', () => {
-      const t = new UI.TextLabel(new Vec2(72, -50), 'hydrated!', '32px DigitalDisco', 'white');
+      const t = new UI.TextLabel(new Vec2(72, -50), 'hydrated! ', '32px DigitalDisco', 'white');
       t.anchor = UI.anchor('center', 'center');
       t.textAlign = 'left';
       return t;
@@ -219,12 +233,13 @@ function update(timestamp) {
       m.pivot = UI.anchor('center', 'center');
       m.onClick = () => {
         m.meter = 0;
+        m.targetMeter = 0;
       }
       return m;
     });
     /*UI.managers.main_menu.show('settings_button', () => {
       const b = new UI.SettingsButton(new Vec2(0, 0), new Vec2(50, 50), () => {
-        
+
       });
       b.anchor = UI.anchor('right', 'top');
       b.pivot = UI.anchor('right', 'top');

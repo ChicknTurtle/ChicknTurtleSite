@@ -230,7 +230,7 @@ UI.SettingsButton = class extends UI.Button {
 }
 
 UI.Meter = class extends UI.Button {
-  constructor(pos = new Vec2(), size = new Vec2(483, 30)) {
+  constructor(pos = new Vec2(), size = new Vec2(161*3, 10*3)) {
     super();
     this.pos = pos;
     this.margin = new Vec2(16, 16);
@@ -247,12 +247,14 @@ UI.Meter = class extends UI.Button {
     this.screenPos = pos;
 
     this.targetMeter = Math.max(this.meter / this.maxMeter, 0);
-    if (this.targetMeter > 0.99) this.targetMeter = 1.01;
-    if (this.targetMeter < 0.01) this.targetMeter = -0.01;
-    this.targetMeter = Math.min(this.targetMeter, 1.01);
+    const snap = 0.005;
+    if (this.targetMeter > 1-snap) this.targetMeter = 1+snap;
+    if (this.targetMeter < snap) this.targetMeter = -snap;
+    this.targetMeter = Math.min(this.targetMeter, 1+snap);
     this.visualMeter = tween(this.visualMeter, this.targetMeter, 0.99, Game.dt);
+    this.visualVelocity = (this.targetMeter-this.visualMeter)/Game.dt;
 
-    this.disabled = (this.visualMeter < 0.995);
+    this.disabled = (this.visualMeter < 1);
 
     this.updateHover();
     this.checkClicked();
@@ -260,24 +262,45 @@ UI.Meter = class extends UI.Button {
   draw(ctx) {
     let pos = this.screenPos || this.getScreenPos();
 
-    //ctx.fillStyle = 'red';
-    //ctx.fillRect(pos.x, pos.y, this.size.x, this.size.y);
-    //ctx.fillStyle = 'blue';
-    //ctx.fillRect(pos.x+this.margin.x/2, pos.y+this.margin.y/2, this.size.x-this.margin.x, this.size.y-this.margin.y);
-
     pos = pos.clone().add(this.margin.times(0.5));
     const meterWidth = 161;
 
     ctx.imageSmoothingEnabled = false;
+    // full
     if (this.disabled == false) {
       if (this.hover) {
-        ctx.drawImage(Game.spritesheets['meter'], 0, 30, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
+        ctx.drawImage(Game.spritesheets['meter'], 0, 50, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
       } else {
-        ctx.drawImage(Game.spritesheets['meter'], 0, 20, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
+        ctx.drawImage(Game.spritesheets['meter'], 0, 40, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
       }
+    // normal
     } else {
       ctx.drawImage(Game.spritesheets['meter'], 0, 0, meterWidth, 10, pos.x, pos.y, this.size.x-this.margin.x, this.size.y-this.margin.y);
-      ctx.drawImage(Game.spritesheets['meter'], 2, 10, (meterWidth - 4) * this.visualMeter, 10, pos.x + this.size.x * (2 / meterWidth), pos.y, (this.size.x-this.margin.x) * ((meterWidth - 4) / meterWidth) * this.visualMeter, this.size.y-this.margin.y);
+      if (this.visualVelocity < 0) {
+        ctx.drawImage(Game.spritesheets['meter'], 2, 20, (meterWidth - 4) * this.visualMeter, 10, pos.x + this.size.x * (2 / meterWidth), pos.y, (this.size.x-this.margin.x) * ((meterWidth - 4) / meterWidth) * this.visualMeter, this.size.y-this.margin.y);
+      } else {
+        ctx.drawImage(Game.spritesheets['meter'], 2, 10, (meterWidth - 4) * this.visualMeter, 10, pos.x + this.size.x * (2 / meterWidth), pos.y, (this.size.x-this.margin.x) * ((meterWidth - 4) / meterWidth) * this.visualMeter, this.size.y-this.margin.y);
+      }
+      // glow
+      ctx.globalAlpha = Math.max(0, Math.min(1, this.visualVelocity));
+      ctx.drawImage(Game.spritesheets['meter'], 2, 30, (meterWidth - 4) * this.visualMeter, 10, pos.x + this.size.x * (2 / meterWidth), pos.y, (this.size.x-this.margin.x) * ((meterWidth - 4) / meterWidth) * this.visualMeter, this.size.y-this.margin.y);
+      ctx.globalAlpha = 1.0;
     }
+  }
+}
+
+UI.Gacha = class extends UI.Button {
+  constructor(pos = new Vec2(), size = new Vec2(64*4, 64*4), onClick = null) {
+    super(pos, size, onClick);
+  }
+  tick() {
+    super.tick();
+  }
+  draw(ctx) {
+    const pos = this.screenPos || this.getScreenPos();
+    //const sx = this.hover ? 64 : 0;
+    const sx = 0;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(Game.spritesheets['gacha'], sx, 0, 64, 64, pos.x, pos.y, this.size.x, this.size.y);
   }
 }
