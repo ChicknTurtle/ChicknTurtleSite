@@ -1,54 +1,118 @@
 
-// TODO
-// fix movement / friction
-// variable jump height
-// jump buffering
-// coyote time
-
 class PlayerObject {
   constructor(pos=new Vec2()) {
     this.pos = pos;
     this.vel = new Vec2(0,0);
-    this.size = new Vec2(9,14);
-    this.gravity = 600;
-    this.fallGravity = 800;
-    this.moveSpeed = 2000;
-    this.moveSpeedCrouching = 200;
-    this.jumpStrength = 260;
-    this.friction = 15;
-    this.airFriction = 10;
+    this.size = new Vec2(9,18);
+
+    this.standingSize = new Vec2(9,18);
+    this.crouchingSize = new Vec2(9,14);
+
+    this.gravity = 800;
+    this.fallGravity = 1200;
+
+    this.moveSpeed = 1400;
+    this.moveSpeedCrouching = 1200;
+    this.maxMoveSpeed = 200;
+
+    this.jumpStrength = 285;
+    this.maxJumpStrength = 330;
+
+    this.friction = 7.5;
+    this.airFriction = 2.5;
+    this.crouchFriction = 22;
+
+    this.pushFactor = 0.25;
+    this.brakeFactor = 2.0;
+    this.airControl = 1.0;
+
+    this.groundIdleFriction = 12;
+    this.groundMoveFriction = 3;
+    this.groundBrakeFriction = 25;
+
+    this.jumpBufferTime = 0.1;
+    this.coyoteTime = 0.08;
+    this.jumpBufferTimer = 0;
+    this.coyoteTimer = 0;
+    this.jumpHeld = false;
+    this.jumpCutApplied = false;
+    this.variableJumpCut = 0.5;
+
     this.onGround = false;
-    this.facing = 'right';
+    this.facing = 1;
     this.crouching = false;
+    this.walking = false;
+
+    this.spriteSize = 24;
+    this.spriteFeetOffset = 0;
+    this.spriteAnchorX = 14;
+    this.cameraVerticalOffset = 40;
+
     this.runFPS = 8;
-    this.runFrames = 3;
+    this.runFrames = 4;
     this.runTime = 0;
     this.runFrame = 0;
   }
 
   update(dt) {
+    // gravity
     this.vel.y += (this.vel.y < 0 ? this.gravity : this.fallGravity) * dt;
 
-    // crouching
+    // crouching & size
+    const oldBottom = this.pos.y + this.size.y;
     if (this.onGround && Game.keybinds['crouch']) {
       this.crouching = true;
+      this.size = this.crouchingSize.clone();
+      this.pos.y = oldBottom - this.size.y;
     } else {
-      this.crouching = false;
-    }
-    
-    // movement
-    if (Game.keybinds['moveLeft'] || Game.keybinds['moveRight']) {
-      if (Game.keybinds['moveLeft']) {
-        this.vel.x -= (this.crouching ? this.moveSpeedCrouching : this.moveSpeed)*dt;
-        this.facing = 'left';
-      }
-      if (Game.keybinds['moveRight']) {
-        this.vel.x += (this.crouching ? this.moveSpeedCrouching : this.moveSpeed)*dt;
-        this.facing = 'right';
+      const trySize = this.standingSize.clone();
+      const tryPosY = oldBottom - trySize.y;
+      this.size = trySize;
+      this.pos.y = tryPosY;
+      if (this._checkCollisionTiles()) {
+        this.size = this.crouchingSize.clone();
+        this.pos.y = oldBottom - this.size.y;
+        this.crouching = true;
+      } else {
+        this.crouching = false;
       }
     }
 
-    // run animation
+    // jump buffering
+    if (Game.keybindsClicked['jump']) this.jumpBufferTimer = this.jumpBufferTime;
+    this.jumpHeld = !!Game.keybinds['jump'];
+    this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
+
+    // coyote time
+    if (this.onGround) {
+      this.coyoteTimer = this.coyoteTime;
+    } else {
+      this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
+    }
+
+    // movement
+    let inputDir = 0;
+    if (Game.keybinds['moveLeft']) inputDir -= 1;
+    if (Game.keybinds['moveRight']) inputDir += 1;
+    this.walking = (inputDir !== 0);
+    const baseAccel = this.crouching ? this.moveSpeedCrouching : this.moveSpeed;
+    const accel = baseAccel * (this.onGround ? 1 : this.airControl);
+    if (inputDir !== 0) {
+      const vx = this.vel.x;
+      const absVx = Math.abs(vx);
+      if (absVx < this.maxMoveSpeed) {
+        this.vel.x += inputDir * accel * dt;
+      } else {
+        if (Math.sign(vx) === inputDir) {
+          this.vel.x += inputDir * accel * this.pushFactor * dt;
+        } else {
+          this.vel.x += inputDir * accel * this.brakeFactor * dt;
+        }
+      }
+      this.facing = inputDir > 0 ? 1 : -1;
+    }
+
+    // run animation timing
     if (this.onGround && Math.abs(this.vel.x) > 5 && !this.crouching) {
       this.runTime += dt;
       this.runFrame = Math.floor(this.runTime * this.runFPS) % this.runFrames;
@@ -58,12 +122,39 @@ class PlayerObject {
     }
 
     // jumping
-    if (this.onGround && !this.crouching && Game.keybindsClicked['jump']) {
-      this.vel.y -= this.jumpStrength;
+    if (this.jumpBufferTimer > 0 && !this.crouching && (this.onGround || this.coyoteTimer > 0)) {
+      const speedRatio = Math.min(Math.abs(this.vel.x), this.maxMoveSpeed) / this.maxMoveSpeed;
+      const jumpVel = this.jumpStrength + (this.maxJumpStrength - this.jumpStrength) * speedRatio;
+      this.vel.y = -jumpVel;
+      this.onGround = false;
+      this.jumpBufferTimer = 0;
+      this.jumpHeld = true;
+      this.jumpCutApplied = false;
+    }
+
+    // variable jump height
+    if (!this.jumpHeld && this.vel.y < 0 && !this.jumpCutApplied) {
+      this.vel.y *= this.variableJumpCut;
+      this.jumpCutApplied = true;
     }
 
     // friction
-    this.vel.x *= (Math.exp(-(this.onGround ? this.friction : this.airFriction) * dt));;
+    let fric = this.airFriction;
+    if (this.onGround) {
+      if (this.crouching) {
+        fric = this.crouchFriction;
+      } else if (!this.walking) {
+        fric = this.groundIdleFriction;
+      } else {
+        const vxSign = Math.sign(this.vel.x) || 0;
+        if (inputDir !== 0 && vxSign !== 0 && inputDir !== vxSign) {
+          fric = this.groundBrakeFriction;
+        } else {
+          fric = this.groundMoveFriction;
+        }
+      }
+    }
+    this.vel.x *= Math.exp(-fric * dt);
 
     // move player
     this.move(this.vel.times(dt));
@@ -71,19 +162,41 @@ class PlayerObject {
 
   draw(ctx) {
     // choose sprite
+    const size = this.spriteSize;
+    const drawPos = this.getSpriteDrawPos();
+
     let sprite;
     if (this.crouching) {
-      sprite = new Vec2(0,24);
+      sprite = new Vec2(0,1);
+    } else if (!this.onGround) {
+      sprite = new Vec2(1,1);
     } else {
-      sprite = new Vec2(this.runFrame*24+24,0);
+      sprite = new Vec2(this.runFrame + 1, 0);
     }
-    // draw sprite facing correct way
-    if (this.facing == 'right') {
-      ctx.drawImage(Game.textures['player'], sprite.x,sprite.y, 24,24, this.pos.x-9,this.pos.y-10, 24,24)
+
+    if (this.facing == 1) {
+      ctx.drawImage(Game.textures['player'], sprite.x * size, sprite.y * size, size, size, drawPos.x, drawPos.y, size, size);
     } else {
-      ctx.drawImage(Game.textures['player_flipped'], sprite.x,sprite.y, 24,24, this.pos.x-6,this.pos.y-10, 24,24)
+      ctx.drawImage(Game.textures['player_flipped'], sprite.x * size, sprite.y * size, size, size, drawPos.x, drawPos.y, size, size);
     }
+
     World.drawHitbox(ctx, this.pos, this.size, 'red');
+  }
+
+  // bottom center of hitbox
+  getFeet() {
+    return new Vec2(this.pos.x + this.size.x * 0.5, this.pos.y + this.size.y);
+  }
+
+  getSpriteDrawPos() {
+    const feet = this.getFeet();
+    const anchorX = (this.facing === 1) ? this.spriteAnchorX : (this.spriteSize - this.spriteAnchorX);
+    return new Vec2(feet.x - anchorX, feet.y - this.spriteFeetOffset - this.spriteSize);
+  }
+
+  getCameraAnchor() {
+    const feet = this.getFeet();
+    return new Vec2(feet.x, feet.y - this.cameraVerticalOffset);
   }
 
   move(delta) {

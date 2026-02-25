@@ -1,7 +1,7 @@
 
 const World = {
   TILE_SIZE: 16,
-  CHUNK_SIZE: 16,
+  CHUNK_SIZE: 32,
   tileInfo: {
     "default": { pos:new Vec2(0,0), solid:true },
     "wall": { pos:new Vec2(1,0), solid:true },
