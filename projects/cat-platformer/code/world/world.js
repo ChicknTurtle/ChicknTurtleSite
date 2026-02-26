@@ -6,10 +6,14 @@ export const World = {
   TILE_SIZE: 16,
   CHUNK_SIZE: 32,
   tileInfo: {
-    "default": { pos:new Vec2(0,0), solid:true, layer:1 },
+    "error": { pos:new Vec2(0,0), solid:true, layer:1 },
     "wall": { pos:new Vec2(1,0), solid:true, layer:1 },
     "grass": { pos:new Vec2(2,0), solid:true, layer:1 },
     "dirt": { pos:new Vec2(3,0), solid:true, layer:1 },
+    "gold": { pos:new Vec2(4,0), solid:true, layer:1 },
+    "ruby": { pos:new Vec2(5,0), solid:true, layer:1 },
+    "diamond": { pos:new Vec2(6,0), solid:true, layer:1 },
+    "emerald": { pos:new Vec2(7,0), solid:true, layer:1 },
   },
   chunks: {},
   layers: {

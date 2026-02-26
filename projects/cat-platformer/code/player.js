@@ -1,4 +1,3 @@
-
 import { Vec2 } from "./lib.js"
 import { Game } from "./game.js"
 import { World } from "./world/world.js"
@@ -8,28 +7,30 @@ export class PlayerObject {
   constructor(pos=new Vec2()) {
     this.pos = pos;
     this.vel = new Vec2(0,0);
-    this.size = new Vec2(9,18);
+    this.size = new Vec2(10,14);
 
-    this.standingSize = new Vec2(9,18);
-    this.crouchingSize = new Vec2(9,14);
+    this.standingSize = new Vec2(10,14);
+    this.crouchingSize = new Vec2(10,14);
 
-    this.gravity = 800;
+    this.gravity = 650;
     this.fallGravity = 1200;
 
-    this.moveSpeed = 1400;
-    this.moveSpeedCrouching = 1200;
-    this.maxMoveSpeed = 200;
+    this.moveSpeed = 400;
+    this.maxMoveSpeed = 180;
 
-    this.jumpStrength = 285;
-    this.maxJumpStrength = 330;
+    this.minJumpHeight = 52;
+    this.maxJumpHeight = 68;
 
     this.friction = 7.5;
     this.airFriction = 2.5;
-    this.crouchFriction = 22;
+    this.fallFriction = 1.0;
 
-    this.pushFactor = 0.25;
-    this.brakeFactor = 2.0;
-    this.airControl = 1.0;
+    this.moveSpeedCrouching = 300;
+    this.maxMoveSpeedCrouching = 35;
+    this.crouchFriction = 12;
+
+    this.airTurning = 1.5;
+    this.airControl = 1.25;
 
     this.groundIdleFriction = 12;
     this.groundMoveFriction = 3;
@@ -42,6 +43,13 @@ export class PlayerObject {
     this.jumpHeld = false;
     this.jumpCutApplied = false;
     this.variableJumpCut = 0.5;
+
+    this.jumpSpeedMinBuffer = 0.2;
+    this.jumpSpeedMaxBuffer = 0.8;
+    this.jumpMinFraction = 0.1;
+
+    // internals
+    this.lastJumpVel = 0;
 
     this.onGround = true;
     this.facing = 1;
@@ -102,16 +110,27 @@ export class PlayerObject {
     this.walking = (inputDir !== 0);
     const baseAccel = this.crouching ? this.moveSpeedCrouching : this.moveSpeed;
     const accel = baseAccel * (this.onGround ? 1 : this.airControl);
+    const maxMoveSpeed = this.crouching ? this.maxMoveSpeedCrouching : this.maxMoveSpeed;
+
+    const vx = this.vel.x;
+
     if (inputDir !== 0) {
-      const vx = this.vel.x;
-      const absVx = Math.abs(vx);
-      if (absVx < this.maxMoveSpeed) {
-        this.vel.x += inputDir * accel * dt;
+      // same direction as current velocity / standing still
+      if (Math.sign(vx) === inputDir || vx === 0) {
+        const appliedAccel = accel;
+        const preAbs = Math.abs(this.vel.x);
+
+        this.vel.x += inputDir * appliedAccel * dt;
+
+        if (preAbs <= maxMoveSpeed && Math.abs(this.vel.x) > maxMoveSpeed) {
+          this.vel.x = Math.sign(this.vel.x) * maxMoveSpeed;
+        }
       } else {
-        if (Math.sign(vx) === inputDir) {
-          this.vel.x += inputDir * accel * this.pushFactor * dt;
+        // braking
+        if (this.onGround) {
+          this.vel.x += inputDir * accel * dt;
         } else {
-          this.vel.x += inputDir * accel * this.brakeFactor * dt;
+          this.vel.x += inputDir * accel * this.airTurning * dt;
         }
       }
       this.facing = inputDir > 0 ? 1 : -1;
@@ -126,11 +145,29 @@ export class PlayerObject {
       this.runFrame = -1;
     }
 
-    // jumping
+    // jumping — now height-based
     if (this.jumpBufferTimer > 0 && (this.onGround || this.coyoteTimer > 0)) {
-      const speedRatio = Math.min(Math.abs(this.vel.x), this.maxMoveSpeed) / this.maxMoveSpeed;
-      const jumpVel = this.jumpStrength + (this.maxJumpStrength - this.jumpStrength) * speedRatio;
+      // compute speed-based jump with min/max buffer (applies to height now)
+      const measuredVx = Math.min(Math.abs(this.vel.x), this.maxMoveSpeed);
+      const speedFraction = this.maxMoveSpeed > 0 ? (measuredVx / this.maxMoveSpeed) : 0;
+
+      const minB = this.jumpSpeedMinBuffer;
+      const maxB = this.jumpSpeedMaxBuffer;
+      let ratio;
+      if (speedFraction <= minB) {
+        ratio = 0;
+      } else if (speedFraction >= maxB) {
+        ratio = 1;
+      } else {
+        ratio = (speedFraction - minB) / Math.max(1e-6, (maxB - minB));
+      }
+
+      // interpolate height and derive initial jump velocity from gravity
+      const jumpHeight = this.minJumpHeight + (this.maxJumpHeight - this.minJumpHeight) * ratio;
+      const jumpVel = Math.sqrt(Math.max(0, 2 * this.gravity * jumpHeight));
       this.vel.y = -jumpVel;
+      this.lastJumpVel = jumpVel;
+
       this.onGround = false;
       this.jumpBufferTimer = 0;
       this.jumpHeld = true;
@@ -139,7 +176,9 @@ export class PlayerObject {
 
     // variable jump height
     if (!this.jumpHeld && this.vel.y < 0 && !this.jumpCutApplied) {
-      this.vel.y *= this.variableJumpCut;
+      const cutVel = this.vel.y * this.variableJumpCut;
+      const minVel = -this.lastJumpVel * this.jumpMinFraction;
+      this.vel.y = Math.min(cutVel, minVel);
       this.jumpCutApplied = true;
     }
 
@@ -159,7 +198,19 @@ export class PlayerObject {
         }
       }
     }
-    this.vel.x *= Math.exp(-fric * dt);
+
+    let applyDamping = true;
+    if (!this.crouching && inputDir !== 0 && Math.sign(this.vel.x) === inputDir) {
+      applyDamping = false;
+    }
+
+    if (applyDamping) {
+      this.vel.x *= Math.exp(-fric * dt);
+    }
+
+    if (!this.onGround && this.vel.y > 0) {
+      this.vel.y *= Math.exp(-this.fallFriction * dt);
+    }
 
     // move player
     this.move(this.vel.times(dt));
