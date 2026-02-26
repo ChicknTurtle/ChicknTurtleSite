@@ -1,5 +1,8 @@
 
-const InputManager = {
+import { Vec2 } from "./lib.js"
+import { Game } from "./game.js"
+
+export const InputManager = {
   pressInput: function(input) {
     Game.inputs[input] = true;
     Game.inputsClicked[input] = true;

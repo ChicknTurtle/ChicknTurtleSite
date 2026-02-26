@@ -1,5 +1,7 @@
 
-const Text = {
+import { Vec2 } from "./lib.js"
+
+export const Text = {
   effectDefs: {
     color: {
       default: null,
@@ -302,5 +304,12 @@ const Text = {
     }
 
     return new Text.Component(components);
+  },
+
+  draw(ctx, text, pos) {
+    if (!(text instanceof Text.Component)) {
+      text = new Text.Component(text);
+    }
+    text.draw(ctx, pos);
   }
 };

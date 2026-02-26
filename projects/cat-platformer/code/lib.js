@@ -1,7 +1,7 @@
 
 // classes
 
-class Vec2 {
+export class Vec2 {
   constructor(x = 0, y = null) {
     if (Array.isArray(x)) {
       let newVec = Vec2.fromArray(x);
@@ -149,7 +149,7 @@ class Vec2 {
   }
 }
 
-class Color {
+export class Color {
   constructor(r = 0, g = 0, b = 0, a = 1) {
     this.r = r;
     this.g = g;
@@ -184,7 +184,7 @@ class Color {
 
 // functions
 
-function randInt(min, max) {
+export function randInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -193,7 +193,14 @@ function randInt(min, max) {
 /**
  * @param {number} start Start number
  * @param {number} end End number
- * @param {number} amount Amount to tween from 0-1, default = `0.5` */
-function tween(start, end, amount = 0.5) {
-  return (1 - amount) * start + amount * end;
+ * @param {number} amount Amount to tween from 0-1, or smoothing strength if dt > 0, default = `0.5`
+ * @param {number} dt Delta time for smooth tweening, if <= 0, use frame dependent logic, default = `0` */
+export function tween(start, end, amount = 0.5, dt = 0) {
+  if (dt <= 0) {
+    return (1 - amount) * start + amount * end;
+  } else {
+    const speed = -Math.log(1 - amount);
+    const t = 1 - Math.exp(-speed * dt);
+    return start + (end - start) * t;
+  }
 }

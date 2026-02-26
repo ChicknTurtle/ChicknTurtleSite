@@ -1,5 +1,10 @@
 
-class PlayerObject {
+import { Vec2 } from "./lib.js"
+import { Game } from "./game.js"
+import { World } from "./world/world.js"
+import { WorldUtils } from "./world/utils.js"
+
+export class PlayerObject {
   constructor(pos=new Vec2()) {
     this.pos = pos;
     this.vel = new Vec2(0,0);
@@ -38,7 +43,7 @@ class PlayerObject {
     this.jumpCutApplied = false;
     this.variableJumpCut = 0.5;
 
-    this.onGround = false;
+    this.onGround = true;
     this.facing = 1;
     this.crouching = false;
     this.walking = false;
@@ -46,7 +51,7 @@ class PlayerObject {
     this.spriteSize = 24;
     this.spriteFeetOffset = 0;
     this.spriteAnchorX = 14;
-    this.cameraVerticalOffset = 40;
+    this.cameraVerticalOffset = 10;
 
     this.runFPS = 8;
     this.runFrames = 4;
@@ -122,7 +127,7 @@ class PlayerObject {
     }
 
     // jumping
-    if (this.jumpBufferTimer > 0 && !this.crouching && (this.onGround || this.coyoteTimer > 0)) {
+    if (this.jumpBufferTimer > 0 && (this.onGround || this.coyoteTimer > 0)) {
       const speedRatio = Math.min(Math.abs(this.vel.x), this.maxMoveSpeed) / this.maxMoveSpeed;
       const jumpVel = this.jumpStrength + (this.maxJumpStrength - this.jumpStrength) * speedRatio;
       this.vel.y = -jumpVel;
@@ -169,7 +174,11 @@ class PlayerObject {
     if (this.crouching) {
       sprite = new Vec2(0,1);
     } else if (!this.onGround) {
-      sprite = new Vec2(1,1);
+      if (this.vel.y < 50) {
+        sprite = new Vec2(1,1);
+      } else {
+        sprite = new Vec2(2,1);
+      }
     } else {
       sprite = new Vec2(this.runFrame + 1, 0);
     }
@@ -180,7 +189,7 @@ class PlayerObject {
       ctx.drawImage(Game.textures['player_flipped'], sprite.x * size, sprite.y * size, size, size, drawPos.x, drawPos.y, size, size);
     }
 
-    World.drawHitbox(ctx, this.pos, this.size, 'red');
+    WorldUtils.drawHitbox(ctx, this.pos, this.size, 'red');
   }
 
   // bottom center of hitbox

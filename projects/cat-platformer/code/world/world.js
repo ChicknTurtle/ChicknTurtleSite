@@ -1,10 +1,15 @@
 
-const World = {
+import { Vec2 } from "./../lib.js"
+import { Game } from "./../game.js"
+
+export const World = {
   TILE_SIZE: 16,
   CHUNK_SIZE: 32,
   tileInfo: {
-    "default": { pos:new Vec2(0,0), solid:true },
-    "wall": { pos:new Vec2(1,0), solid:true },
+    "default": { pos:new Vec2(0,0), solid:true, layer:1 },
+    "wall": { pos:new Vec2(1,0), solid:true, layer:1 },
+    "grass": { pos:new Vec2(2,0), solid:true, layer:1 },
+    "dirt": { pos:new Vec2(3,0), solid:true, layer:1 },
   },
   chunks: {},
   layers: {
@@ -150,19 +155,5 @@ World.Chunk = class {
     }
     const chunkDrawPos = this.pos.times(World.CHUNK_SIZE * World.TILE_SIZE);
     ctx.drawImage(this.canvas, chunkDrawPos.x, chunkDrawPos.y);
-  }
-}
-
-World.draw = function(ctx) {
-  // chunks
-  Object.values(World.chunks).forEach(chunk => {
-    if (!chunk.onScreen()) return;
-    chunk.render(ctx);
-  });
-  // player
-  World.player.draw(ctx);
-  // chunk grid
-  if (Game.debugToggles['chunkGrid']) {
-    World.drawGrid(ctx, World.CHUNK_SIZE*World.TILE_SIZE, "rgba(255,0,0,0.5)", 2);
   }
 }

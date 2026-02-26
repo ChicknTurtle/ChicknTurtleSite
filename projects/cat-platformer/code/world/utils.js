@@ -1,5 +1,11 @@
 
-World.getIntersectingTiles = function(startPoint, endPoint) {
+import { Vec2 } from "./../lib.js"
+import { Game } from "./../game.js"
+import { World } from "./world.js"
+
+export const WorldUtils = {}
+
+WorldUtils.getIntersectingTiles = function(startPoint, endPoint) {
   const tiles = [];
   let currentTile = startPoint.times(1 / World.TILE_SIZE).floor();
   const endTile = endPoint.times(1 / World.TILE_SIZE).floor();
@@ -26,20 +32,20 @@ World.getIntersectingTiles = function(startPoint, endPoint) {
   return tiles;
 }
 
-World.getGamePos = function(screenpos) {
+WorldUtils.getGamePos = function(screenpos) {
   return screenpos.divided(Game.cam.zoom).plus(Game.cam.pos);
 }
 
-World.getScreenPos = function(gamepos) {
+WorldUtils.getScreenPos = function(gamepos) {
   return gamepos.minus(Game.cam.pos).times(Game.cam.zoom);
 }
 
-World.getGlobalTilePos = function(chunkpos, tilepos) {
+WorldUtils.getGlobalTilePos = function(chunkpos, tilepos) {
   if (chunkpos instanceof World.Chunk) chunkpos = chunkpos.pos;
   return chunkpos.times(World.CHUNK_SIZE).plus(tilepos);
 }
 
-World.drawGrid = function(ctx, cellSize, color="rgba(255,255,255,0.1)", lineWidth=0.5) {
+WorldUtils.drawGrid = function(ctx, cellSize, color="rgba(255,255,255,0.1)", lineWidth=0.5) {
   let canvas = Game.canvas;
   ctx.beginPath();
   const left = Game.cam.pos.x;
@@ -66,7 +72,7 @@ World.drawGrid = function(ctx, cellSize, color="rgba(255,255,255,0.1)", lineWidt
   ctx.stroke();
 }
 
-World.drawHitbox = function(ctx, pos, size, color='rgba(255,255,255,1)') {
+WorldUtils.drawHitbox = function(ctx, pos, size, color='rgba(255,255,255,1)') {
   if (!Game.debugToggles?.['drawHitboxes']) { return }
   ctx.strokeStyle = color;
   ctx.lineWidth = 0.5;

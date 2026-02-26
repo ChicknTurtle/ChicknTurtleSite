@@ -1,5 +1,9 @@
 
-var Game = {
+import { Vec2 } from "./lib.js"
+
+export const Game = {
+  name: 'Cat Platformer',
+  id: 'cat_platformer',
   /** @type {HTMLCanvasElement} */
   canvas: null,
   /** @type {CanvasRenderingContext2D} */
@@ -24,11 +28,13 @@ var Game = {
   keybindsReleased: {},
   mousePos: null,
   prevMousePos: null,
+  mouseVel: null,
   loading: null,
   loadingText: "",
   textures: {},
   fonts: {},
   debugToggles: [],
   ignoreNextDebugToggle: false,
-  cam: {zoom:2, pos:new Vec2(0,0)},
+  cam: {zoom:2, pos:new Vec2(0,0), anchor:new Vec2(0,0)},
+  defaultCam: {zoom:2, pos:new Vec2(0,0), anchor:new Vec2(0,0)},
 };

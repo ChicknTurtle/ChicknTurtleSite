@@ -1,10 +1,12 @@
 
-const Assets = {}
+import { Game } from "./game.js"
+
+export const Assets = {}
 
 Assets.load = async function() {
   Game.loading = [0,0];
-  const assets = await Assets.loadAssets([
-    { type:'texture', name:'ui', src:'assets/textures/ui.png' },
+  await Assets.loadAssets([
+    { type:'texture', name:'editor', src:'assets/textures/editor.png' },
     { type:'texture', name:'tiles', src:'assets/textures/tiles.png' },
     { type:'texture', name:'player', src:'assets/textures/player.png' },
     { type:'font', name:'Pixellari', src:'assets/fonts/Pixellari.ttf' },
