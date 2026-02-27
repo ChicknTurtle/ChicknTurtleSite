@@ -7,10 +7,11 @@ export class PlayerObject {
   constructor(pos=new Vec2()) {
     this.pos = pos;
     this.vel = new Vec2(0,0);
-    this.size = new Vec2(10,14);
-
+    
     this.standingSize = new Vec2(10,14);
     this.crouchingSize = new Vec2(10,14);
+
+    this.size = this.standingSize;
 
     this.gravity = 650;
     this.fallGravity = 1200;
@@ -25,36 +26,29 @@ export class PlayerObject {
     this.airFriction = 2.5;
     this.fallFriction = 1.0;
 
-    this.moveSpeedCrouching = 300;
-    this.maxMoveSpeedCrouching = 35;
-    this.crouchFriction = 12;
+    this.moveSpeedCrouching = 0;
+    this.maxMoveSpeedCrouching = 20;
+    this.crouchFriction = 20;
 
     this.airTurning = 1.5;
     this.airControl = 1.25;
 
+    this.swipeVelocity = -100;
+    this.swipeDuration = 0.2;
+    this.swipeCooldown = 0.5;
+    this.swipeFrames = 5;
+    
     this.groundIdleFriction = 12;
     this.groundMoveFriction = 3;
     this.groundBrakeFriction = 25;
-
+    
     this.jumpBufferTime = 0.1;
     this.coyoteTime = 0.08;
-    this.jumpBufferTimer = 0;
-    this.coyoteTimer = 0;
-    this.jumpHeld = false;
-    this.jumpCutApplied = false;
     this.variableJumpCut = 0.5;
 
     this.jumpSpeedMinBuffer = 0.2;
     this.jumpSpeedMaxBuffer = 0.8;
     this.jumpMinFraction = 0.1;
-
-    // internals
-    this.lastJumpVel = 0;
-
-    this.onGround = true;
-    this.facing = 1;
-    this.crouching = false;
-    this.walking = false;
 
     this.spriteSize = 24;
     this.spriteFeetOffset = 0;
@@ -63,6 +57,19 @@ export class PlayerObject {
 
     this.runFPS = 8;
     this.runFrames = 4;
+
+    // trackers
+    this.swipeTime = 0;
+    this.swipeCooldownTime = 0;
+    this.jumpBufferTimer = 0;
+    this.coyoteTimer = 0;
+    this.jumpHeld = false;
+    this.jumpCutApplied = false;
+    this.lastJumpVel = 0;
+    this.onGround = true;
+    this.facing = 1;
+    this.crouching = false;
+    this.walking = false;
     this.runTime = 0;
     this.runFrame = 0;
   }
@@ -101,6 +108,20 @@ export class PlayerObject {
       this.coyoteTimer = this.coyoteTime;
     } else {
       this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
+    }
+
+    // swipe
+    this.swipeTime = Math.max(0, this.swipeTime - dt);
+    this.swipeCooldownTime = Math.max(0, this.swipeCooldownTime - dt);
+    if (Game.keybindsClicked['attack'] && this.swipeCooldownTime <= 0) {
+      this.swipeTime = this.swipeDuration;
+      this.swipeCooldownTime = this.swipeCooldown;
+      if (!this.onGround) {
+        this.vel.y = Math.min(this.vel.y, this.swipeVelocity);
+      }
+    }
+    if (this.swipeTime > 0 && !this.onGround) {
+      this.vel.y = Math.min(this.vel.y, 0);
     }
 
     // movement
@@ -145,9 +166,8 @@ export class PlayerObject {
       this.runFrame = -1;
     }
 
-    // jumping — now height-based
+    // jumping
     if (this.jumpBufferTimer > 0 && (this.onGround || this.coyoteTimer > 0)) {
-      // compute speed-based jump with min/max buffer (applies to height now)
       const measuredVx = Math.min(Math.abs(this.vel.x), this.maxMoveSpeed);
       const speedFraction = this.maxMoveSpeed > 0 ? (measuredVx / this.maxMoveSpeed) : 0;
 
@@ -162,7 +182,6 @@ export class PlayerObject {
         ratio = (speedFraction - minB) / Math.max(1e-6, (maxB - minB));
       }
 
-      // interpolate height and derive initial jump velocity from gravity
       const jumpHeight = this.minJumpHeight + (this.maxJumpHeight - this.minJumpHeight) * ratio;
       const jumpVel = Math.sqrt(Math.max(0, 2 * this.gravity * jumpHeight));
       this.vel.y = -jumpVel;
@@ -218,14 +237,13 @@ export class PlayerObject {
 
   draw(ctx) {
     // choose sprite
-    const size = this.spriteSize;
-    const drawPos = this.getSpriteDrawPos();
-
     let sprite;
     if (this.crouching) {
       sprite = new Vec2(0,1);
+    } else if (this.swipeTime > 0) {
+      sprite = new Vec2(3 + Math.floor(Math.min(Math.max((this.swipeDuration - this.swipeTime) / this.swipeDuration, 0) * this.swipeFrames, this.swipeFrames - 1e-9)), 1);
     } else if (!this.onGround) {
-      if (this.vel.y < 50) {
+      if (this.vel.y < 0) {
         sprite = new Vec2(1,1);
       } else {
         sprite = new Vec2(2,1);
@@ -233,6 +251,10 @@ export class PlayerObject {
     } else {
       sprite = new Vec2(this.runFrame + 1, 0);
     }
+
+    const size = this.spriteSize;
+    const drawPos = this.getSpriteDrawPos();
+    drawPos.multiply(Game.cam.zoom).floor().divide(Game.cam.zoom);
 
     if (this.facing == 1) {
       ctx.drawImage(Game.textures['player'], sprite.x * size, sprite.y * size, size, size, drawPos.x, drawPos.y, size, size);

@@ -2,7 +2,7 @@
 import { Vec2 } from "./../lib.js"
 import { Game } from "./../game.js"
 import { Text } from "./../text.js"
-import { UI } from "./managers.js"
+import { UI } from "./ui.js"
 
 export const Elements = {}
 

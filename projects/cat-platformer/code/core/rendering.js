@@ -4,9 +4,9 @@ import { Game } from "./../game.js"
 import { StateManager } from "./stateManager.js"
 import { EventBus } from "./eventBus.js"
 import { WorldRenderer } from "./../world/rendering.js"
-import { UI } from "./../ui/managers.js"
+import { UI } from "../ui/ui.js"
 import { Text } from "./../text.js"
-import { Editor } from "./../editor.js"
+import { Editor } from "./../states/editor.js"
 
 export const Renderer = {}
 

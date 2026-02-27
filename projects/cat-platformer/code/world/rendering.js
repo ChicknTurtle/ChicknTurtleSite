@@ -2,28 +2,110 @@
 import { Vec2 } from "./../lib.js"
 import { Game } from "./../game.js"
 import { StateManager } from "./../core/stateManager.js"
-import { Editor } from "./../editor.js"
+import { Editor } from "./../states/editor.js"
 import { World } from "./world.js"
 import { WorldUtils } from "./utils.js"
 
-export const WorldRenderer = {}
+export const WorldRenderer = {
+  layerAlpha: {},
+}
+
+WorldRenderer._bakeChunkLayer = function(chunk, layer) {
+  const layerObj = chunk.layers?.[layer];
+  if (!layerObj) return;
+
+  if (!layerObj.canvas) {
+    const chunkPx = World.CHUNK_SIZE * World.TILE_SIZE;
+    layerObj.canvas = document.createElement('canvas');
+    layerObj.canvas.width = chunkPx;
+    layerObj.canvas.height = chunkPx;
+    layerObj.ctx = layerObj.canvas.getContext('2d');
+    layerObj.rerender = true;
+  }
+  if (!layerObj.rerender) return;
+
+  const lctx = layerObj.ctx;
+  lctx.clearRect(0, 0, layerObj.canvas.width, layerObj.canvas.height);
+
+  const tileset = Game.textures['tiles'];
+  for (let y = 0; y < World.CHUNK_SIZE; y++) {
+    for (let x = 0; x < World.CHUNK_SIZE; x++) {
+      const tile = layerObj.tiles?.[y]?.[x];
+      if (!tile) continue;
+      const tileInfo = World.tileInfo[tile];
+      if (!tileInfo) continue;
+
+      const tileSpritesheetPos = (tileInfo.pos ?? new Vec2(0,0)).times(World.TILE_SIZE);
+      const tileDrawPos = new Vec2(x, y).times(World.TILE_SIZE).floor();
+      lctx.drawImage(
+        tileset,
+        tileSpritesheetPos.x, tileSpritesheetPos.y,
+        World.TILE_SIZE, World.TILE_SIZE,
+        tileDrawPos.x, tileDrawPos.y,
+        World.TILE_SIZE, World.TILE_SIZE
+      );
+    }
+  }
+
+  layerObj.rerender = false;
+}
 
 WorldRenderer.draw = function(ctx) {
-  // chunks
-  Object.values(World.chunks).forEach(chunk => {
-    if (!chunk.onScreen()) return;
-    chunk.render(ctx);
+  const camWorldWidth = Game.canvas.width / Game.dpr / Game.cam.zoom;
+  const camWorldHeight = Game.canvas.height / Game.dpr / Game.cam.zoom;
+  const camWorldPos = Game.cam.pos;
+  const camRect = { x: camWorldPos.x, y: camWorldPos.y, w: camWorldWidth, h: camWorldHeight };
+
+  let layerKeys = [];
+  try {
+    layerKeys = Object.values(World.layers).slice().sort((a,b) => a - b);
+  } catch (e) {
+    const set = new Set();
+    Object.values(World.chunks).forEach(c => Object.keys(c.layers || {}).forEach(k => set.add(Number(k))));
+    layerKeys = Array.from(set).sort((a,b)=>a-b);
+  }
+
+  const visibleChunks = Object.values(World.chunks).filter(chunk => chunk.onScreen());
+  const chunkSizePx = World.CHUNK_SIZE * World.TILE_SIZE;
+
+  // draw chunks
+  layerKeys.forEach(layer => {
+    const alpha = this.layerAlpha[layer] ?? 1;
+
+    for (let i = 0; i < visibleChunks.length; i++) {
+      const chunk = visibleChunks[i];
+      const layerObj = chunk.layers?.[layer];
+      if (!layerObj) continue;
+
+      if (layerObj.rerender) {
+        this._bakeChunkLayer(chunk, layer);
+      }
+
+      if (!layerObj.canvas) continue;
+
+      const chunkDrawPos = chunk.pos.times(chunkSizePx);
+
+      if (
+        chunkDrawPos.x + chunkSizePx < camRect.x ||
+        chunkDrawPos.x > camRect.x + camRect.w ||
+        chunkDrawPos.y + chunkSizePx < camRect.y ||
+        chunkDrawPos.y > camRect.y + camRect.h
+      ) continue;
+
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(layerObj.canvas, chunkDrawPos.x, chunkDrawPos.y);
+      ctx.globalAlpha = 1;
+    }
   });
-  // player
+
   if (World.player) {
     World.player.draw(ctx);
   }
 
-  // draw editor
+  // editor overlays
   if (StateManager.current === 'editor') {
     WorldUtils.drawGrid(ctx, World.TILE_SIZE, "rgba(255,255,255,0.1)", 0.5);
 
-    // tile highlight
     if (Game.mousePos &&
       Game.mousePos.x > 0 &&
       Game.mousePos.x < Game.canvas.width*(1/Game.dpr) - Editor.SIDEBAR_WIDTH &&
@@ -58,7 +140,7 @@ WorldRenderer.draw = function(ctx) {
     }
   }
 
-  // chunk grid
+  // chunk grid debug
   if (Game.debugToggles['chunkGrid']) {
     WorldUtils.drawGrid(ctx, World.CHUNK_SIZE*World.TILE_SIZE, "rgba(255,0,0,0.5)", 2);
   }

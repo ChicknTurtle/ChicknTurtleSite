@@ -6,7 +6,7 @@ export const World = {
   TILE_SIZE: 16,
   CHUNK_SIZE: 32,
   tileInfo: {
-    "error": { pos:new Vec2(0,0), solid:true, layer:1 },
+    "error": { pos:new Vec2(0,0), solid:true, layer:1, hidden:true },
     "wall": { pos:new Vec2(1,0), solid:true, layer:1 },
     "grass": { pos:new Vec2(2,0), solid:true, layer:1 },
     "dirt": { pos:new Vec2(3,0), solid:true, layer:1 },
@@ -69,59 +69,80 @@ World.Chunk = class {
   constructor(pos) {
     this.pos = pos;
     this.layers = {};
-    // create canvas
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = World.CHUNK_SIZE * World.TILE_SIZE;
-    this.canvas.height = World.CHUNK_SIZE * World.TILE_SIZE;
-    this.ctx = this.canvas.getContext('2d');
-    this.rerender = true;
   }
+
   initLayer(layer) {
-    this.layers[layer] = {tiles:[],tileCount:0,tiledata:{}};
-    const row = [];
+    const layerObj = {
+      tiles: [],
+      tileCount: 0,
+      tiledata: {},
+      rerender: true,
+      canvas: document.createElement('canvas'),
+      ctx: null,
+    };
+
+    const chunkPx = World.CHUNK_SIZE * World.TILE_SIZE;
+    layerObj.canvas.width = chunkPx;
+    layerObj.canvas.height = chunkPx;
+    layerObj.ctx = layerObj.canvas.getContext('2d');
+
+    const row = new Array(World.CHUNK_SIZE).fill(null);
     for (let i = 0; i < World.CHUNK_SIZE; i++) {
-      row.push(null);
+      layerObj.tiles.push([...row]);
     }
-    for (let i = 0; i < World.CHUNK_SIZE; i++) {
-      this.layers[layer].tiles.push([...row]);
-    }
-    return this.layers[layer];
+
+    this.layers[layer] = layerObj;
+    return layerObj;
   }
+
   getTile(localpos, layer) {
     localpos = localpos.floored();
     return this.layers?.[layer]?.tiles[localpos.y]?.[localpos.x] ?? null;
   }
+
   getTiledata(localpos, layer) {
     localpos = localpos.floored();
     return this.layers?.[layer]?.tiledata[`${localpos.x},${localpos.y}`] ?? {};
   }
-  setTile(localpos, layer, tile, tiledata={}) {
+
+  setTile(localpos, layer, tile, tiledata = {}) {
     localpos = localpos.floored();
     const layerObj = this.layers[layer] ?? this.initLayer(layer);
     const currentTile = this.getTile(localpos, layer);
+
     // update tile count
     if (currentTile === null && tile !== null) {
       layerObj.tileCount++;
     } else if (currentTile !== null && tile === null) {
-        layerObj.tileCount--;
+      layerObj.tileCount--;
     }
+
     // delete layer/chunk when empty
     if (layerObj.tileCount <= 0) {
+      if (layerObj.canvas) {
+        layerObj.ctx = null;
+        layerObj.canvas.width = 0;
+        layerObj.canvas.height = 0;
+        layerObj.canvas = null;
+      }
       delete this.layers[layer];
       if (Object.keys(this.layers).length === 0) {
-        delete World.chunks[`${this.pos.x},${this.pos.y}`]
+        delete World.chunks[`${this.pos.x},${this.pos.y}`];
       }
       return;
     }
-    // set tile and tiledata
+
+    // set tile
     layerObj.tiles[localpos.y][localpos.x] = tile;
     if (Object.keys(tiledata).length !== 0) {
       layerObj.tiledata[`${localpos.x},${localpos.y}`] = tiledata;
     } else {
       delete layerObj.tiledata[`${localpos.x},${localpos.y}`];
     }
-    this.rerender = true;
+
+    layerObj.rerender = true;
   }
+
   onScreen() {
     const chunkWorldPos = this.pos.times(World.CHUNK_SIZE * World.TILE_SIZE);
     const chunkWorldWidth = World.CHUNK_SIZE * World.TILE_SIZE;
@@ -135,29 +156,8 @@ World.Chunk = class {
       chunkWorldPos.y + chunkWorldHeight < Game.cam.pos.y
     );
   }
-  render(ctx) {
-    if (this.rerender) {
-      this.rerender = false;
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      const tileset = Game.textures['tiles'];
-      Object.keys(this.layers).forEach(layer => {
-        for (let y = 0; y < World.CHUNK_SIZE; y++) {
-          for (let x = 0; x < World.CHUNK_SIZE; x++) {
-            const pos = new Vec2(x,y);
-            const tile = this.getTile(pos, layer);
-            if (!tile) continue; // empty tile
-            const tileChunkPos = new Vec2(x,y);
-            const tileInfo = World.tileInfo[tile];
-            let drawPos = tileInfo?.pos ?? new Vec2(0,0);
-            // draw to chunk canvas
-            const tileSpritesheetPos = drawPos.times(World.TILE_SIZE);
-            const tileDrawPos = tileChunkPos.times(World.TILE_SIZE).floor();
-            this.ctx.drawImage(tileset, tileSpritesheetPos.x, tileSpritesheetPos.y, World.TILE_SIZE, World.TILE_SIZE, tileDrawPos.x, tileDrawPos.y, World.TILE_SIZE, World.TILE_SIZE);
-          }
-        }
-      });
-    }
-    const chunkDrawPos = this.pos.times(World.CHUNK_SIZE * World.TILE_SIZE);
-    ctx.drawImage(this.canvas, chunkDrawPos.x, chunkDrawPos.y);
+
+  _clearLayerRerender(layer) {
+    if (this.layers?.[layer]) this.layers[layer].rerender = false;
   }
 }

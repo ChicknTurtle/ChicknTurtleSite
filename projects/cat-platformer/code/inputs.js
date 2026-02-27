@@ -7,8 +7,9 @@ export const InputManager = {
     Game.inputs[input] = true;
     Game.inputsClicked[input] = true;
     InputManager.keybinds?.[input]?.forEach(keybind => {
+      const wasPressed = !!Game.keybinds[keybind];
       Game.keybinds[keybind] = true;
-      Game.keybindsClicked[keybind] = true;
+      if (!wasPressed) Game.keybindsClicked[keybind] = true;
     });
   },
 
@@ -16,8 +17,15 @@ export const InputManager = {
     delete Game.inputs[input];
     Game.inputsReleased[input] = true;
     InputManager.keybinds?.[input]?.forEach(keybind => {
-      delete Game.keybinds[keybind];
-      Game.keybindsReleased[keybind] = true;
+      const stillHeld = Object.keys(InputManager.keybinds).some(k => {
+        if (k === input) return false;
+        const binds = InputManager.keybinds[k];
+        return binds && binds.includes(keybind) && Game.inputs[k];
+      });
+      if (!stillHeld) {
+        delete Game.keybinds[keybind];
+        Game.keybindsReleased[keybind] = true;
+      }
     });
   },
 

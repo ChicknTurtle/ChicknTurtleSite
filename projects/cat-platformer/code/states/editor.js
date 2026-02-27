@@ -1,12 +1,12 @@
 
-import { Vec2 } from "./lib.js"
-import { Game } from "./game.js"
-import { EventBus } from "./core/eventBus.js"
-import { World } from "./world/world.js"
-import { WorldUtils } from "./world/utils.js"
-import { WorldIO } from "./world/io.js"
-import { UI } from "./ui/managers.js"
-import { EditorElements } from "./ui/editor.js"
+import { Vec2 } from "../lib.js"
+import { Game } from "../game.js"
+import { EventBus } from "../core/eventBus.js"
+import { World } from "../world/world.js"
+import { WorldUtils } from "../world/utils.js"
+import { WorldIO } from "../world/io.js"
+import { UI } from "../ui/ui.js"
+import { EditorElements } from "../ui/editor.js"
 
 export const Editor = {
   PALETTE_HEIGHT: 70,
@@ -17,6 +17,14 @@ export const Editor = {
   palette: [],
   erasing: false,
   lastAutosave: 0,
+}
+
+Editor.getFitPaletteIcons = function() {
+  return Math.min(Editor.palette.length, Math.max(1, ((Game.canvas.width*(1/Game.dpr))-270)/70));
+}
+
+Editor.switchPalette = function(index) {
+  Editor.selectedPaletteIndex = Math.min(index, Editor.getFitPaletteIcons()-1);
 }
 
 Editor.saveToFile = function() {
@@ -86,7 +94,7 @@ Editor.bufferedAutosave = function() {
 }
 
 Editor.zoomCamera = function(amount, pos) {
-  const minZoom=0.5, maxZoom=6, snap=4, eps=0.05, base=1.005;
+  const minZoom=0.25, maxZoom=4, snap=4, eps=0.05, base=1.005;
   let z1 = Game.cam.zoom * Math.pow(base, -amount);
   if (Math.abs(z1 - snap) < eps) z1 = snap;
   z1 = Math.max(minZoom, Math.min(maxZoom, z1));
@@ -99,24 +107,29 @@ Editor.panCamera = function(delta) {
   Game.cam.pos.subtract(delta);
 }
 
-Editor.enter = function() {
+Editor.enter = function(payload) {
   UI.managers.editor = new UI.Manager();
   UI.managers.editor.paletteIcons = [];
-  Editor.palette = Object.keys(World.tileInfo);
+  Editor.palette = Object.keys(World.tileInfo).filter(key => !World.tileInfo[key]?.hidden);
 
   Editor._eb_zoom = (p) => Editor.zoomCamera(p.amount, p.pos);
-  Editor._eb_pan = (p) => Editor.panCamera(p.delta || p);
+  Editor._eb_pan = (p) => Editor.panCamera(p.delta);
   Editor._eb_save = () => Editor.saveToFile();
   Editor._eb_load = () => Editor.loadFromFile();
+  Editor._eb_switch_palette = (p) => Editor.switchPalette(p);
 
   EventBus.on('editor:zoom', Editor._eb_zoom);
   EventBus.on('editor:pan', Editor._eb_pan);
   EventBus.on('editor:save', Editor._eb_save);
   EventBus.on('editor:load', Editor._eb_load);
+  EventBus.on('editor:switch_palette', Editor._eb_switch_palette);
 
   // back button
   UI.managers.editor.show('BackButton', () =>
-    new EditorElements.BackButton()
+    new EditorElements.BackButton(() => {
+      EventBus.emit('state:request', 'main_menu');
+      Editor.autosave();
+    })
   );
   // erase button
   UI.managers.editor.show('erase_button', () =>
@@ -136,6 +149,8 @@ Editor.exit = function() {
   UI.managers.editor.destroyAll();
   delete UI.managers.editor;
 
+  Game.cam = { zoom:Game.defaultCam.zoom, pos:Game.defaultCam.pos.clone(), anchor:Game.defaultCam.anchor.clone() };
+
   // unsubscribe from eventbus
   EventBus.off('editor:zoom', Editor._eb_zoom);
   EventBus.off('editor:pan', Editor._eb_pan);
@@ -149,16 +164,14 @@ Editor.exit = function() {
 }
 
 Editor.update = function(dt) {
-  const fitPaletteIcons = Math.min(Object.keys(World.tileInfo).length, Math.max(1, ((Game.canvas.width*(1/Game.dpr))-270)/70));
   for (let i = 0; i < 10; i++) {
-    if (Game.inputsClicked[`Digit${i+1}`] && i < fitPaletteIcons) {
-      Editor.selectedPaletteIndex = i;
+    if (Game.inputsClicked[`Digit${i+1}`]) {
+      EventBus.emit('editor:switch_palette', i);
     }
   }
-  if (Game.inputsClicked['Digit0'] && 10 < fitPaletteIcons) {
-    Editor.selectedPaletteIndex = 9;
+  if (Game.inputsClicked['Digit0']) {
+    EventBus.emit('editor:switch_palette', 9);
   }
-  Editor.selectedPaletteIndex = Math.min(Editor.selectedPaletteIndex, fitPaletteIcons);
   Editor.selectedTile = Editor.palette[Editor.selectedPaletteIndex];
 
   // pan
@@ -168,20 +181,20 @@ Editor.update = function(dt) {
   if (Game.inputsClicked['pan']) {
     EventBus.emit('editor:pan', { delta: Game.inputsClicked['pan'] });
   }
-  if (Game.inputs['KeyW']) EventBus.emit('editor:pan', { delta: new Vec2(0,4) });
-  if (Game.inputs['KeyS']) EventBus.emit('editor:pan', { delta: new Vec2(0,-4) });
-  if (Game.inputs['KeyA']) EventBus.emit('editor:pan', { delta: new Vec2(4,0) });
-  if (Game.inputs['KeyD']) EventBus.emit('editor:pan', { delta: new Vec2(-4,0) });
+  if (Game.keybinds['editorCamUp']) EventBus.emit('editor:pan', { delta: new Vec2(0,4) });
+  if (Game.keybinds['editorCamDown']) EventBus.emit('editor:pan', { delta: new Vec2(0,-4) });
+  if (Game.keybinds['editorCamLeft']) EventBus.emit('editor:pan', { delta: new Vec2(4,0) });
+  if (Game.keybinds['editorCamRight']) EventBus.emit('editor:pan', { delta: new Vec2(-4,0) });
 
   // zoom
   if (Game.inputsClicked['scroll']) {
     EventBus.emit('editor:zoom', { amount: Game.inputsClicked['scroll'], pos: Game.mousePos });
   }
-  if (Game.inputs['Equal']) {
-    EventBus.emit('editor:zoom', { amount: -8, pos: new Vec2(Game.canvas.width/2,Game.canvas.height/2*(1/Game.dpr)) });
+  if (Game.keybinds['editorZoomIn']) {
+    EventBus.emit('editor:zoom', { amount: -8, pos: new Vec2(Game.canvas.width/2*(1/Game.dpr),Game.canvas.height/2*(1/Game.dpr)) });
   }
-  if (Game.inputs['Minus']) {
-    EventBus.emit('editor:zoom', { amount: 8, pos: new Vec2(Game.canvas.width/2,Game.canvas.height/2*(1/Game.dpr)) });
+  if (Game.keybinds['editorZoomOut']) {
+    EventBus.emit('editor:zoom', { amount: 8, pos: new Vec2(Game.canvas.width/2*(1/Game.dpr),Game.canvas.height/2*(1/Game.dpr)) });
   }
 
   // erasing toggle logic
@@ -230,6 +243,7 @@ Editor.update = function(dt) {
   }
 
   // always show correct amount of palette icons
+  const fitPaletteIcons = Editor.getFitPaletteIcons();
   // delete extra
   UI.managers.editor.paletteIcons.forEach(element => {
     if (element.index > fitPaletteIcons) {

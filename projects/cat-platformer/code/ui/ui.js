@@ -1,6 +1,6 @@
 
-import { Vec2 } from "./../lib.js"
-import { Game } from "./../game.js"
+import { Vec2 } from "../lib.js"
+import { Game } from "../game.js"
 
 export const UI = {
   managers: {},
