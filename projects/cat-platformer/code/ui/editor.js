@@ -62,7 +62,7 @@ EditorElements.SaveButton = class extends Elements.Button {
         pos.y <= this.pos.y + this.size.y
       )
       if (this.hover && Game.inputsClicked['Mouse0']) {
-        Editor.saveToFile();
+        EventBus.emit('worldio:save_to_file');
       }
     }
   }
@@ -98,7 +98,7 @@ EditorElements.LoadButton = class extends Elements.Button {
         pos.y <= this.pos.y + this.size.y
       )
       if (this.hover && Game.inputsClicked['Mouse0']) {
-        Editor.loadFromFile();
+        EventBus.emit('worldio:load_from_file');
       }
     }
   }
@@ -135,11 +135,29 @@ EditorElements.BackButton = class extends Elements.Button {
   }
 }
 
+EditorElements.PlayButton = class extends Elements.Button {
+  constructor(onClick=null) {
+    super(new Vec2(-7,-9), new Vec2(54,54), onClick);
+    this.anchor = new Vec2(1,1);
+    this.pivot = new Vec2(1,1);
+  }
+  draw(ctx) {
+    ctx.imageSmoothingEnabled = false;
+    const pos = this.getScreenPos();
+    // box
+    if (this.hover) {
+      ctx.drawImage(Game.textures['editor'], 104, 25, 24, 24, pos.x, pos.y, this.size.x, this.size.y);
+    } else {
+      ctx.drawImage(Game.textures['editor'], 104, 0, 24, 24, pos.x, pos.y, this.size.x, this.size.y);
+    }
+  }
+}
+
 EditorElements.PaletteIcon = class extends Elements.Button {
   constructor(index=0) {
     super(new Vec2(), new Vec2(54,54));
     this.index = index;
-    this.pos.x = 150+this.index*70;
+    this.pos.x = 100+this.index*60;
     this.pos.y = 9;
     this.anchor = new Vec2(0,0);
     this.pivot = new Vec2(0,0);
@@ -160,11 +178,15 @@ EditorElements.PaletteIcon = class extends Elements.Button {
     }
     // icon
     const tile = Editor.palette[this.index];
-    const tilesetPos = World.tileInfo[tile]?.pos?.times(World.TILE_SIZE) || new Vec2(0,0);
-    if (World.tileInfo[tile]?.useAutoTile) {
-      tilesetPos.add(new Vec2(World.TILE_SIZE*3, World.TILE_SIZE*3));
+    if (tile.type === 'tile') {
+      const tilesetPos = World.tileInfo[tile.id]?.pos?.times(World.TILE_SIZE) || new Vec2(0,0);
+      ctx.drawImage(Game.textures['tiles'], tilesetPos.x, tilesetPos.y, World.TILE_SIZE, World.TILE_SIZE, Math.floor(pos.x+8), Math.floor(pos.y+8), 38, 38);
+    } else if (tile.type === 'entity') {
+      const icon = Game.entities[tile.id]?.icon;
+      if (icon) {
+        ctx.drawImage(Game.textures[icon.texture], icon.pos.x, icon.pos.y, icon.size.x, icon.size.y, Math.floor(pos.x+8), Math.floor(pos.y+8), 38, 38);
+      }
     }
-    ctx.drawImage(Game.textures['tiles'], tilesetPos.x, tilesetPos.y, World.TILE_SIZE, World.TILE_SIZE, Math.floor(pos.x+8), Math.floor(pos.y+8), 38, 38);
     // text
     ctx.imageSmoothingEnabled = true;
     if (this.index <= 9) {

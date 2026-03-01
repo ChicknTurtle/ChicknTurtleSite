@@ -5,33 +5,33 @@ import { InputManager } from "./../inputs.js"
 import { EventBus } from "./../core/eventBus.js"
 import { World } from "./../world/world.js"
 import { WorldIO } from "./../world/io.js"
+import { Entities } from "../entities/entities.js"
 import { StateManager } from "./../core/stateManager.js"
 import { Editor } from "../states/editor.js"
 import { MainMenuState } from "../states/mainMenu.js"
 import { GameplayState } from "../states/gameplay.js"
+import { EditorGameplayState } from "../states/editor_gameplay.js"
 
 export const Core = {}
 
 Core.init = function() {
-  // wire statemanager events
+  // wire events
   EventBus.on('state:request', (name) => {
     StateManager.change(name);
   });
+  EventBus.on('worldio:save_to_file', WorldIO.saveToFile);
+  EventBus.on('worldio:load_from_file', WorldIO.loadFromFile);
+  EventBus.on('worldio:autosave', WorldIO.autosave);
+  EventBus.on('worldio:load_autosave', WorldIO.loadAutosave);
 
   // register states
   StateManager.register('main_menu', MainMenuState);
   StateManager.register('gameplay', GameplayState);
   StateManager.register('editor', Editor);
+  StateManager.register('editor_gameplay', EditorGameplayState);
 
   // load autosave
-  const autosave = localStorage.getItem(`${Game.id}.autosave`);
-  if (autosave) {
-    const saveData = JSON.parse(autosave);
-    WorldIO.loadSaveData(saveData);
-    console.log('Loaded autosave.')
-  } else {
-    console.log('No autosave found.');
-  }
+  EventBus.emit('worldio:load_autosave');
 
   // setup keybinds
   InputManager.addKeybind('moveLeft', ['KeyA','ArrowLeft'])
@@ -45,6 +45,10 @@ Core.init = function() {
   InputManager.addKeybind('editorCamDown', ['KeyS','ArrowDown'])
   InputManager.addKeybind('editorZoomIn', ['Equal'])
   InputManager.addKeybind('editorZoomOut', ['Minus'])
+  InputManager.addKeybind('editorToggleGrid', ['KeyG'])
+
+  // register entities
+  Entities.register();
 
   // initial state
   StateManager.change('main_menu');
@@ -69,9 +73,6 @@ Core.update = function(dt) {
   Game.debugText.push(`zoom: ${Game.cam.zoom.toFixed(2)}, pos: ${Game.cam.pos.x.toFixed(0)},${Game.cam.pos.y.toFixed(0)}`);
   Game.debugText.push(`inputs: ${Object.keys(Game.inputs)}`);
   Game.debugText.push(`keybinds: ${Object.keys(Game.keybinds)}`);
-  if (World.player) {
-    Game.debugText.push(`pos: ${World.player.pos.x.toFixed(0)},${World.player.pos.y.toFixed(0)}, vel: ${World.player.vel.x.toFixed(0)},${World.player.vel.y.toFixed(0)}`);
-  }
 
   Game.dpr = window.devicePixelRatio || 1;
   const rect = Game.canvas.getBoundingClientRect();

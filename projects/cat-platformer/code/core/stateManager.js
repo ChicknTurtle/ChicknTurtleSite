@@ -6,7 +6,7 @@ export const StateManager = {
   register(name, module) { this.states[name] = module; },
 
   change(name, payload) {
-    console.debug(`Switching state '${this.current}' -> '${name}'`);
+    //console.debug(`Switching state '${this.current}' -> '${name}'`);
     this.pending = { name, payload };
   },
 

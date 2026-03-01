@@ -4,92 +4,46 @@ import { Game } from "../game.js"
 import { EventBus } from "../core/eventBus.js"
 import { World } from "../world/world.js"
 import { WorldUtils } from "../world/utils.js"
-import { WorldIO } from "../world/io.js"
 import { UI } from "../ui/ui.js"
 import { EditorElements } from "../ui/editor.js"
 
 export const Editor = {
   PALETTE_HEIGHT: 70,
   SIDEBAR_WIDTH: 70,
-  FILE_EXT: 'json',
   selectedTile: null,
   selectedPaletteIndex: 0,
-  palette: [],
+  palette: [
+    { type:'tile', id:'wall' },
+    { type:'tile', id:'grass' },
+    { type:'tile', id:'dirt' },
+    { type:'tile', id:'platform' },
+    { type:'tile', id:'wall_metal' },
+    { type:'tile', id:'wall_dirt' },
+    { type:'tile', id:'gold' },
+    { type:'tile', id:'ruby' },
+    { type:'tile', id:'diamond' },
+    { type:'tile', id:'emerald' },
+    { type:'tile', id:'bush' },
+    { type:'entity', id:'player' },
+    { type:'entity', id:'coin' },
+  ],
   erasing: false,
+  showGrid: true,
   lastAutosave: 0,
 }
 
 Editor.getFitPaletteIcons = function() {
-  return Math.min(Editor.palette.length, Math.max(1, ((Game.canvas.width*(1/Game.dpr))-270)/70));
+  return Math.floor(Math.min(Editor.palette.length, Math.max(1, ((Game.canvas.width*(1/Game.dpr))-180)/60)));
 }
 
 Editor.switchPalette = function(index) {
   Editor.selectedPaletteIndex = Math.min(index, Editor.getFitPaletteIcons()-1);
 }
 
-Editor.saveToFile = function() {
-  console.log("Saving world to file...");
-  try {
-    const saveData = WorldIO.getSaveData();
-    const jsonData = JSON.stringify(saveData);
-    const blob = new Blob([jsonData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${Game.id}_level.${Editor.FILE_EXT}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    EventBus.emit('editor:save:done', { time: Game.gameTime });
-  } catch (err) {
-    EventBus.emit('editor:save:error', { error: err });
-    throw err;
-  }
-}
-
-Editor.loadFromFile = async function() {
-  console.log("Loading world from file...");
-  try {
-    const [fileHandle] = await window.showOpenFilePicker({
-      types: [{
-        description: `${Game.name} Level File`,
-        accept: {'application/json': [`.${Editor.FILE_EXT}`]},
-      }]
-    });
-    const file = await fileHandle.getFile();
-    const content = await file.text();
-    const saveData = JSON.parse(content);
-    const result = WorldIO.loadSaveData(saveData);
-    if (result !== true) {
-      EventBus.emit('editor:load:error', { reason: result });
-      alert(`Failed to load world from file: ${result}`);
-    } else {
-      EventBus.emit('editor:load:done', { time: Game.gameTime });
-    }
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      if (error.name === 'SyntaxError') {
-        EventBus.emit('editor:load:error', { reason: 'syntax' });
-        alert("Failed to load world from file: not a valid json file");
-      } else {
-        EventBus.emit('editor:load:error', { error });
-        alert(`Failed to load world from file: ${error}`);
-      }
-    }
-  }
-}
-
-Editor.autosave = function() {
-  const saveData = WorldIO.getSaveData();
-  localStorage.setItem(`${Game.id}.autosave`, JSON.stringify(saveData));
-  EventBus.emit('editor:autosave', { time: Game.gameTime });
-}
-
-Editor.bufferedAutosave = function() {
-  if (Game.gameTime > Editor.lastAutosave + 1) {
+Editor.bufferedAutosave = function(force=false) {
+  if (force || Game.gameTime > Editor.lastAutosave + 1) {
     Editor.lastAutosave = Game.gameTime;
-    Editor.autosave();
+    EventBus.emit('worldio:autosave');
   }
 }
 
@@ -110,25 +64,30 @@ Editor.panCamera = function(delta) {
 Editor.enter = function(payload) {
   UI.managers.editor = new UI.Manager();
   UI.managers.editor.paletteIcons = [];
-  Editor.palette = Object.keys(World.tileInfo).filter(key => !World.tileInfo[key]?.hidden);
+  Editor.selectedPaletteIndex = 0;
 
   Editor._eb_zoom = (p) => Editor.zoomCamera(p.amount, p.pos);
   Editor._eb_pan = (p) => Editor.panCamera(p.delta);
-  Editor._eb_save = () => Editor.saveToFile();
-  Editor._eb_load = () => Editor.loadFromFile();
+  Editor._eb_autosave = (p) => Editor.bufferedAutosave(p);
   Editor._eb_switch_palette = (p) => Editor.switchPalette(p);
 
   EventBus.on('editor:zoom', Editor._eb_zoom);
   EventBus.on('editor:pan', Editor._eb_pan);
-  EventBus.on('editor:save', Editor._eb_save);
-  EventBus.on('editor:load', Editor._eb_load);
+  EventBus.on('editor:autosave', Editor._eb_autosave);
   EventBus.on('editor:switch_palette', Editor._eb_switch_palette);
 
   // back button
   UI.managers.editor.show('BackButton', () =>
     new EditorElements.BackButton(() => {
+      EventBus.emit('worldio:autosave');
       EventBus.emit('state:request', 'main_menu');
-      Editor.autosave();
+    })
+  );
+  // play button
+  UI.managers.editor.show('PlayButton', () =>
+    new EditorElements.PlayButton(() => {
+      EventBus.emit('worldio:autosave');
+      EventBus.emit('state:request', 'editor_gameplay');
     })
   );
   // erase button
@@ -215,6 +174,9 @@ Editor.update = function(dt) {
   }
   if (Game.inputsClicked['KeyE']) Editor.erasing = !Editor.erasing;
 
+  // toggle grid
+  if (Game.keybindsClicked['editorToggleGrid']) Editor.showGrid = !Editor.showGrid;
+
   // place/erase tiles
   const prevMousePos = Game.prevMousePos ?? Game.mousePos;
   if (Game.mousePos &&
@@ -230,27 +192,27 @@ Editor.update = function(dt) {
           World.setTileAt(tilepos, layer, null);
         });
       });
-    } else if (Editor.selectedTile) {
+    } else {
       WorldUtils.getIntersectingTiles(WorldUtils.getGamePos(prevMousePos), WorldUtils.getGamePos(Game.mousePos)).forEach(tilepos => {
-        if (World.tileInfo[Editor.selectedTile]?.layer) {
-          World.setTileAt(tilepos, World.tileInfo[Editor.selectedTile]?.layer, Editor.selectedTile);
+        if (World.tileInfo[Editor.selectedTile.id]?.layer) {
+          World.setTileAt(tilepos, World.tileInfo[Editor.selectedTile.id]?.layer, Editor.selectedTile.id);
         } else {
-          World.setTileAt(tilepos, 0, Editor.selectedTile);
+          World.setTileAt(tilepos, 0, Editor.selectedTile.id);
         }
       });
     }
-    Editor.bufferedAutosave();
+    EventBus.emit('editor:autosave');
   }
 
   // always show correct amount of palette icons
   const fitPaletteIcons = Editor.getFitPaletteIcons();
   // delete extra
   UI.managers.editor.paletteIcons.forEach(element => {
-    if (element.index > fitPaletteIcons) {
+    if (element.index >= fitPaletteIcons) {
       UI.managers.editor.destroy(`PaletteIcon_${element.index}`);
     }
   });
-  UI.managers.editor.paletteIcons = UI.managers.editor.paletteIcons.filter(element => element.index <= fitPaletteIcons);
+  UI.managers.editor.paletteIcons = UI.managers.editor.paletteIcons.filter(element => element.index < fitPaletteIcons);
   // create needed
   for (let i = 0; i < fitPaletteIcons; i++) {
     if (!UI.managers.editor.elements[`PaletteIcon_${i}`]) {

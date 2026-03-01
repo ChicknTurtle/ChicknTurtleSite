@@ -37,4 +37,5 @@ export const Game = {
   ignoreNextDebugToggle: false,
   cam: {zoom:2, pos:new Vec2(0,0), anchor:new Vec2(0,0)},
   defaultCam: {zoom:2, pos:new Vec2(0,0), anchor:new Vec2(0,0)},
+  entities: {},
 };

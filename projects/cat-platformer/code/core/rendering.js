@@ -16,7 +16,8 @@ Renderer.draw = function(ctx) {
   EventBus.emit('render:frame:before', { ctx });
 
   // background
-  ctx.fillStyle = 'rgb(21,24,39)';
+  //ctx.fillStyle = 'rgb(21,24,39)';
+  ctx.fillStyle = '#00396d';
   ctx.clearRect(0,0,Game.canvas.width,Game.canvas.height);
   ctx.fillRect(0,0,Game.canvas.width,Game.canvas.height);
 
@@ -28,7 +29,7 @@ Renderer.draw = function(ctx) {
   // draw world
   EventBus.emit('render:world:before', { ctx, state });
 
-  if (state === 'main_menu' || state === 'editor' || state === 'gameplay') {
+  if (state === 'main_menu' || state === 'editor' || state === 'gameplay' || state === 'editor_gameplay') {
     ctx.save();
     ctx.scale(Game.cam.zoom, Game.cam.zoom);
     ctx.translate(-Game.cam.pos.x, -Game.cam.pos.y);
@@ -52,8 +53,9 @@ Renderer.draw = function(ctx) {
   } else if (state === 'gameplay') {
     if (UI.managers.gameplay) UI.managers.gameplay.draw(ctx);
     EventBus.emit('render:ui:gameplay', { ctx });
-  } else {
-    EventBus.emit('render:ui:other', { ctx, state });
+  } else if (state === 'editor_gameplay') {
+    if (UI.managers.editor_gameplay) UI.managers.editor_gameplay.draw(ctx);
+    EventBus.emit('render:ui:editor_gameplay', { ctx });
   }
 
   EventBus.emit('render:ui:after', { ctx, state });

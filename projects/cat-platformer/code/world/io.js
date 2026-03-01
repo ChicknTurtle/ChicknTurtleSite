@@ -1,9 +1,11 @@
 
 import { Vec2 } from "./../lib.js"
+import { Game } from "./../game.js"
 import { World } from "./world.js"
 
 export const WorldIO = {
   version: 1,
+  FILE_EXT: 'json',
 
   _rleEncode(arr) {
     if (!arr || !arr.length) return [];
@@ -71,7 +73,7 @@ export const WorldIO = {
       version: this.version,
       palette,
       chunkSize: [S, S],
-      chunks: []
+      chunks: [],
     };
 
     for (const key in chunksSrc) {
@@ -235,12 +237,12 @@ export const WorldIO = {
 
             const obj = Object.fromEntries(Array.isArray(entries) ? entries : []);
             if (obj && Object.keys(obj).length) {
-              layerObj.tiledata[`${c},${r}`] = obj; // x=c, y=r
+              layerObj.tiledata[`${c},${r}`] = obj;
             }
           }
         }
 
-        // Drop empty layers
+        // drop empty layers
         if (tileCount === 0 && Object.keys(layerObj.tiledata).length === 0) {
           delete chunk.layers[layerIndex];
         } else {
@@ -255,11 +257,72 @@ export const WorldIO = {
       loaded++;
     }
 
-    console.log(
-      `Successfully loaded savedata (${loaded} chunk(s), version:${saveData.version ?? 'unknown'})`
-    );
+    console.debug(`Successfully loaded savedata (${loaded} chunk(s), version:${saveData.version ?? 'unknown'})`);
     World.chunks = newChunks;
 
     return true;
   }
 };
+
+WorldIO.saveToFile = function() {
+  console.log("Saving world to file...");
+  try {
+    const saveData = WorldIO.getSaveData();
+    const jsonData = JSON.stringify(saveData);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${Game.id}_level.${WorldIO.FILE_EXT}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    throw err;
+  }
+}
+
+WorldIO.loadFromFile = async function() {
+  console.log("Loading world from file...");
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [{
+        description: `${Game.name} Level File`,
+        accept: {'application/json': [`.${WorldIO.FILE_EXT}`]},
+      }]
+    });
+    const file = await fileHandle.getFile();
+    const content = await file.text();
+    const saveData = JSON.parse(content);
+    const result = WorldIO.loadSaveData(saveData);
+    if (result !== true) {
+      alert(`Failed to load world from file: ${result}`);
+    } else {
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      if (error.name === 'SyntaxError') {
+        alert("Failed to load world from file: not a valid json file");
+      } else {
+        alert(`Failed to load world from file: ${error}`);
+      }
+    }
+  }
+}
+
+WorldIO.autosave = function() {
+  const saveData = WorldIO.getSaveData();
+  localStorage.setItem(`${Game.id}.autosave`, JSON.stringify(saveData));
+}
+
+WorldIO.loadAutosave = function() {
+  const autosave = localStorage.getItem(`${Game.id}.autosave`);
+  if (autosave) {
+    const saveData = JSON.parse(autosave);
+    WorldIO.loadSaveData(saveData);
+    console.log('Loaded autosave.')
+  } else {
+    console.log('No autosave found.');
+  }
+}

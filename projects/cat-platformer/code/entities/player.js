@@ -1,17 +1,21 @@
-import { Vec2 } from "./lib.js"
-import { Game } from "./game.js"
-import { World } from "./world/world.js"
-import { WorldUtils } from "./world/utils.js"
+import { Vec2 } from "../lib.js"
+import { Game } from "../game.js"
+import { Entity } from "./entity.js"
+import { World } from "../world/world.js"
+import { WorldUtils } from "../world/utils.js"
+import { CoinEntity } from "./coins.js"
 
-export class PlayerObject {
+export class PlayerEntity extends Entity {
   constructor(pos=new Vec2()) {
-    this.pos = pos;
-    this.vel = new Vec2(0,0);
+    pos.add(new Vec2(3, 2));
+    super(pos);
+    this.prevPos = pos.clone();
     
     this.standingSize = new Vec2(10,14);
     this.crouchingSize = new Vec2(10,14);
 
     this.size = this.standingSize;
+    this.prevSize = this.size.clone();
 
     this.gravity = 650;
     this.fallGravity = 1200;
@@ -19,8 +23,8 @@ export class PlayerObject {
     this.moveSpeed = 400;
     this.maxMoveSpeed = 180;
 
-    this.minJumpHeight = 52;
-    this.maxJumpHeight = 68;
+    this.minJumpHeight = 68;
+    this.maxJumpHeight = 84;
 
     this.friction = 7.5;
     this.airFriction = 2.5;
@@ -33,9 +37,9 @@ export class PlayerObject {
     this.airTurning = 1.5;
     this.airControl = 1.25;
 
-    this.swipeVelocity = -100;
+    this.swipeVelocity = -120;
     this.swipeDuration = 0.2;
-    this.swipeCooldown = 0.5;
+    this.swipeCooldown = 0.6;
     this.swipeFrames = 5;
     
     this.groundIdleFriction = 12;
@@ -50,9 +54,9 @@ export class PlayerObject {
     this.jumpSpeedMaxBuffer = 0.8;
     this.jumpMinFraction = 0.1;
 
-    this.spriteSize = 24;
-    this.spriteFeetOffset = 0;
-    this.spriteAnchorX = 14;
+    this.spriteSize = 32;
+    this.spriteFeetOffset = -5;
+    this.spriteAnchorX = 18;
     this.cameraVerticalOffset = 10;
 
     this.runFPS = 8;
@@ -66,7 +70,7 @@ export class PlayerObject {
     this.jumpHeld = false;
     this.jumpCutApplied = false;
     this.lastJumpVel = 0;
-    this.onGround = true;
+    this.onGround = false;
     this.facing = 1;
     this.crouching = false;
     this.walking = false;
@@ -89,7 +93,7 @@ export class PlayerObject {
       const tryPosY = oldBottom - trySize.y;
       this.size = trySize;
       this.pos.y = tryPosY;
-      if (this._checkCollisionTiles()) {
+      if (this._checkCollisionTilesVertical()) {
         this.size = this.crouchingSize.clone();
         this.pos.y = oldBottom - this.size.y;
         this.crouching = true;
@@ -113,7 +117,7 @@ export class PlayerObject {
     // swipe
     this.swipeTime = Math.max(0, this.swipeTime - dt);
     this.swipeCooldownTime = Math.max(0, this.swipeCooldownTime - dt);
-    if (Game.keybindsClicked['attack'] && this.swipeCooldownTime <= 0) {
+    if (Game.keybindsClicked['attack'] && this.swipeCooldownTime <= 0 && !this.crouching) {
       this.swipeTime = this.swipeDuration;
       this.swipeCooldownTime = this.swipeCooldown;
       if (!this.onGround) {
@@ -232,7 +236,27 @@ export class PlayerObject {
     }
 
     // move player
+    this.prevPos = this.pos.clone();
+    this.prevSize = this.size.clone();
     this.move(this.vel.times(dt));
+
+    // entity collision
+    const nearby = World.queryEntitiesInAABB(
+      this.pos,
+      this.size
+    );
+    for (const e of nearby) {
+      if (e === this) continue;
+      if (e instanceof CoinEntity) {
+        World.removeEntity(e);
+      }
+    }
+
+    // update cam
+    Game.cam.pos.x = this.getCameraAnchor().x + (Game.canvas.width/Game.dpr/Game.cam.zoom)/-2;
+    Game.cam.pos.y = this.getCameraAnchor().y + (Game.canvas.height/Game.dpr/Game.cam.zoom)/-2;
+    Game.cam.pos.x = Math.floor(Game.cam.pos.x * Game.cam.zoom * Game.dpr) / Game.cam.zoom / Game.dpr;
+    Game.cam.pos.y = Math.floor(Game.cam.pos.y * Game.cam.zoom * Game.dpr) / Game.cam.zoom / Game.dpr;
   }
 
   draw(ctx) {
@@ -254,7 +278,6 @@ export class PlayerObject {
 
     const size = this.spriteSize;
     const drawPos = this.getSpriteDrawPos();
-    drawPos.multiply(Game.cam.zoom).floor().divide(Game.cam.zoom);
 
     if (this.facing == 1) {
       ctx.drawImage(Game.textures['player'], sprite.x * size, sprite.y * size, size, size, drawPos.x, drawPos.y, size, size);
@@ -273,7 +296,8 @@ export class PlayerObject {
   getSpriteDrawPos() {
     const feet = this.getFeet();
     const anchorX = (this.facing === 1) ? this.spriteAnchorX : (this.spriteSize - this.spriteAnchorX);
-    return new Vec2(feet.x - anchorX, feet.y - this.spriteFeetOffset - this.spriteSize);
+    const pos = new Vec2(feet.x - anchorX, feet.y - this.spriteFeetOffset - this.spriteSize);
+    return pos.multiply(Game.cam.zoom).multiply(Game.dpr).floor().divide(Game.cam.zoom).divide(Game.dpr);
   }
 
   getCameraAnchor() {
@@ -288,11 +312,12 @@ export class PlayerObject {
     const steps = Math.max(1, Math.ceil(maxDelta / granularity));
     const step = new Vec2(delta.x / steps, delta.y / steps);
     this.onGround = false;
+
     for (let i = 0; i < steps; i++) {
-      // horizontal collision
+      // horizontal movement
       if (step.x !== 0) {
         this.pos.x += step.x;
-        const collisions = this._checkCollisionTiles();
+        const collisions = this._checkCollisionTilesHorizontal();
         if (collisions) {
           if (step.x > 0) {
             let minTx = Infinity;
@@ -306,17 +331,20 @@ export class PlayerObject {
           this.vel.x = 0;
         }
       }
-      // vertical collision
-      if (step.y !== 0) {
+
+      // vertical movement
+      if (step.y !== 0 && !this._checkCollisionTilesVertical()) {
         this.pos.y += step.y;
-        const collisions = this._checkCollisionTiles();
+        const collisions = this._checkCollisionTilesVertical();
         if (collisions) {
           if (step.y > 0) {
+            // floor
             let minTy = Infinity;
             for (const c of collisions) if (c.ty < minTy) minTy = c.ty;
             this.pos.y = (minTy * World.TILE_SIZE) - this.size.y;
             this.onGround = true;
           } else {
+            // ceiling
             let maxTy = -Infinity;
             for (const c of collisions) if (c.ty > maxTy) maxTy = c.ty;
             this.pos.y = (maxTy + 1) * World.TILE_SIZE;
@@ -324,10 +352,12 @@ export class PlayerObject {
           this.vel.y = 0;
         }
       }
+
+      World.updateEntityPosition(this, this.pos);
     }
   }
   
-  _checkCollisionTiles() {
+  _checkCollisionTilesHorizontal() {
     const left = this.pos.x;
     const top = this.pos.y;
     const right = this.pos.x + this.size.x;
@@ -343,7 +373,53 @@ export class PlayerObject {
     for (let tx = tileLeft; tx <= tileRight; tx++) {
       for (let ty = tileTop; ty <= tileBottom; ty++) {
         const tile = World.getTileAt(new Vec2(tx, ty), World.layers.GROUND);
-        if (World.tileInfo?.[tile]?.solid) hits.push({ tx, ty });
+        const info = World.tileInfo?.[tile];
+        if (!info) continue;
+        if (info.solid) {
+          hits.push({ tx, ty, type: 'solid' });
+        }
+      }
+    }
+
+    return hits.length ? hits : null;
+  }
+
+  _checkCollisionTilesVertical() {
+    const left = this.pos.x;
+    const top = this.pos.y;
+    const right = this.pos.x + this.size.x;
+    const bottom = this.pos.y + this.size.y;
+
+    const tileLeft = Math.floor(left / World.TILE_SIZE);
+    const tileTop = Math.floor(top / World.TILE_SIZE);
+    const tileRight = Math.floor((right - 1e-6) / World.TILE_SIZE);
+    const tileBottom = Math.floor((bottom - 1e-6) / World.TILE_SIZE);
+
+    const hits = [];
+
+    const prevBottom = (this.prevPos?.y ?? this.pos.y) + (this.prevSize?.y ?? this.size.y);
+    const EPS = 1e-6;
+    const movingDown = (this.vel.y > 0 - EPS);
+
+    for (let tx = tileLeft; tx <= tileRight; tx++) {
+      for (let ty = tileTop; ty <= tileBottom; ty++) {
+        const tile = World.getTileAt(new Vec2(tx, ty), World.layers.GROUND);
+        const info = World.tileInfo?.[tile];
+        if (!info) continue;
+
+        if (info.solid) {
+          hits.push({ tx, ty, type: 'solid' });
+          continue;
+        }
+
+        if (info.semisolid) {
+          const tileTopY = ty * World.TILE_SIZE;
+          const wasAbove = prevBottom <= tileTopY + EPS;
+          const isNowOver = bottom > tileTopY + EPS;
+          if (movingDown && wasAbove && isNowOver) {
+            hits.push({ tx, ty, type: 'semisolid' });
+          }
+        }
       }
     }
 

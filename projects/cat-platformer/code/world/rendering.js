@@ -34,16 +34,24 @@ WorldRenderer._bakeChunkLayer = function(chunk, layer) {
       if (!tile) continue;
       const tileInfo = World.tileInfo[tile];
       if (!tileInfo) continue;
-
-      const tileSpritesheetPos = (tileInfo.pos ?? new Vec2(0,0)).times(World.TILE_SIZE);
-      const tileDrawPos = new Vec2(x, y).times(World.TILE_SIZE).floor();
-      lctx.drawImage(
-        tileset,
-        tileSpritesheetPos.x, tileSpritesheetPos.y,
-        World.TILE_SIZE, World.TILE_SIZE,
-        tileDrawPos.x, tileDrawPos.y,
-        World.TILE_SIZE, World.TILE_SIZE
-      );
+      if (tileInfo.entity) {
+        const entityInfo = Game.entities?.[tileInfo.entity];
+        if (!entityInfo) continue;
+        const icon = entityInfo.icon;
+        if (icon) {
+          lctx.drawImage(Game.textures[icon.texture], icon.pos.x, icon.pos.y, icon.size.x, icon.size.y, x*World.TILE_SIZE, y*World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
+        }
+      } else {
+        const tileSpritesheetPos = (tileInfo.pos ?? new Vec2(0,0)).times(World.TILE_SIZE);
+        const tileDrawPos = new Vec2(x, y).times(World.TILE_SIZE).floor();
+        lctx.drawImage(
+          tileset,
+          tileSpritesheetPos.x, tileSpritesheetPos.y,
+          World.TILE_SIZE, World.TILE_SIZE,
+          tileDrawPos.x, tileDrawPos.y,
+          World.TILE_SIZE, World.TILE_SIZE
+        );
+      }
     }
   }
 
@@ -98,14 +106,19 @@ WorldRenderer.draw = function(ctx) {
     }
   });
 
-  if (World.player) {
-    World.player.draw(ctx);
-  }
+  // entities
+  World.entities.forEach(entity => {
+    entity.draw(ctx);
+  });
 
   // editor overlays
   if (StateManager.current === 'editor') {
-    WorldUtils.drawGrid(ctx, World.TILE_SIZE, "rgba(255,255,255,0.1)", 0.5);
+    // grid
+    if (Editor.showGrid) {
+      WorldUtils.drawGrid(ctx, World.TILE_SIZE, "rgba(255,255,255,0.1)", 0.5);
+    }
 
+    // tile hover
     if (Game.mousePos &&
       Game.mousePos.x > 0 &&
       Game.mousePos.x < Game.canvas.width*(1/Game.dpr) - Editor.SIDEBAR_WIDTH &&
@@ -116,16 +129,22 @@ WorldRenderer.draw = function(ctx) {
       const mouseTileScreenPos = mouseTilePos.times(World.TILE_SIZE);
       let tile = World.getTileAt(mouseTilePos, World.layers.ROOF) ?? World.getTileAt(mouseTilePos, World.layers.OBJECTS) ?? World.getTileAt(mouseTilePos, World.layers.DECORATIONS) ?? World.getTileAt(mouseTilePos, 0);
       if (
-        (Editor.selectedTile !== tile) &&
+        (Editor.selectedTile?.id !== tile) &&
         !Editor.erasing
       ) {
-        const tileSpritesheetPos = World.tileInfo[Editor.selectedTile]?.pos?.times(World.TILE_SIZE) ?? new Vec2(0,0);
-        if (World.tileInfo[Editor.selectedTile]?.useAutoTile) {
-          tileSpritesheetPos.add(new Vec2(World.TILE_SIZE*3, World.TILE_SIZE*3));
+        if (Editor.selectedTile.type === 'tile') {
+          const tileSpritesheetPos = World.tileInfo[Editor.selectedTile.id]?.pos?.times(World.TILE_SIZE) ?? new Vec2(0,0);
+          ctx.globalAlpha = 0.5;
+          ctx.drawImage(Game.textures['tiles'], tileSpritesheetPos.x, tileSpritesheetPos.y, World.TILE_SIZE, World.TILE_SIZE, mouseTileScreenPos.x, mouseTileScreenPos.y, World.TILE_SIZE, World.TILE_SIZE);
+          ctx.globalAlpha = 1;
+        } else if (Editor.selectedTile.type === 'entity') {
+          const icon = Game.entities[Editor.selectedTile.id]?.icon;
+          if (icon) {
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(Game.textures[icon.texture], icon.pos.x, icon.pos.y, icon.size.x, icon.size.y, mouseTileScreenPos.x, mouseTileScreenPos.y, World.TILE_SIZE, World.TILE_SIZE);
+            ctx.globalAlpha = 1;
+          }
         }
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(Game.textures['tiles'], tileSpritesheetPos.x, tileSpritesheetPos.y, World.TILE_SIZE, World.TILE_SIZE, mouseTileScreenPos.x, mouseTileScreenPos.y, World.TILE_SIZE, World.TILE_SIZE);
-        ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = 'rgba(255,255,255,0.25)';
         ctx.fillRect(mouseTileScreenPos.x, mouseTileScreenPos.y, World.TILE_SIZE, World.TILE_SIZE)

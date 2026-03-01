@@ -20,7 +20,7 @@ MainMenuState.update = function(dt) {
   UI.managers.main_menu.show('singleplayer_button', () =>
   new Elements.MainMenuButton(new Vec2(0,-100), () => {
     EventBus.emit('state:request', 'gameplay');
-  }, 'Singleplayer')
+  }, 'Singleplayer', true)
   );
   UI.managers.main_menu.show('multiplayer_button', () =>
   new Elements.MainMenuButton(new Vec2(0,-40), () => {

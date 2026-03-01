@@ -9,6 +9,7 @@ Assets.load = async function() {
     { type:'texture', name:'editor', src:'assets/textures/editor.png' },
     { type:'texture', name:'tiles', src:'assets/textures/tiles.png' },
     { type:'texture', name:'player', src:'assets/textures/player.png' },
+    { type:'texture', name:'coins', src:'assets/textures/coins.png' },
     { type:'font', name:'Pixellari', src:'assets/fonts/Pixellari.ttf' },
     { type:'font', name:'DigitalDisco', src:'assets/fonts/DigitalDisco.ttf' },
     { type:'font', name:'LycheeSoda', src:'assets/fonts/LycheeSoda.ttf' },
@@ -16,7 +17,7 @@ Assets.load = async function() {
   Game.loading = null;
 
   // setup flipped textures
-  Game.textures['player_flipped'] = Assets.getFlippedTexture(Game.textures['player'], 24)
+  Game.textures['player_flipped'] = Assets.getFlippedTexture(Game.textures['player'], 32);
 }
 
 Assets.loadTexture = function(name, src) {
