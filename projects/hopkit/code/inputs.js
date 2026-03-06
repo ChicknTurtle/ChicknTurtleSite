@@ -1,6 +1,7 @@
 
 import { Vec2 } from "./utils/lib.js"
 import { Game } from "./game.js"
+import { EventBus } from "./core/eventBus.js";
 
 export const InputManager = {
   pressInput: function(input) {
@@ -10,6 +11,7 @@ export const InputManager = {
       const wasPressed = !!Game.keybinds[keybind];
       Game.keybinds[keybind] = true;
       if (!wasPressed) Game.keybindsClicked[keybind] = true;
+      if (!wasPressed) EventBus.emit('keybind:pressed', keybind);
     });
   },
 

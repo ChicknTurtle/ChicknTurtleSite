@@ -245,7 +245,7 @@ export class PlayerEntity extends PhysicsEntity {
       this.vel.y *= Math.exp(-this.fallFriction * dt);
     }
 
-    this.moveDelta(this.vel.times(dt));
+    this.moveDelta(this.vel, dt);
 
     // entity collision
     const nearby = World.queryEntitiesInAABB(
