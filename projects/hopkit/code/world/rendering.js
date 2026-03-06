@@ -120,7 +120,7 @@ WorldRenderer.draw = function(ctx) {
 
     // tile hover
     const sidebarWidth = (Editor.viewingPalette ? Editor.SIDEBAR_WIDTH + Editor.PALETTE_WIDTH : Editor.SIDEBAR_WIDTH);
-    if (Game.mousePos &&
+    if (!Editor.hasPopup && Game.mousePos &&
       Game.mousePos.x > 0 &&
       Game.mousePos.x < Game.canvas.width*(1/Game.dpr) - sidebarWidth &&
       Game.mousePos.y > Editor.SIDEBAR_HEIGHT &&

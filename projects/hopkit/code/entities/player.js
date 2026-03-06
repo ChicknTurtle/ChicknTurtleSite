@@ -1,24 +1,23 @@
 import { Vec2 } from "../utils/lib.js"
 import { Game } from "../game.js"
-import { Entity } from "./entity.js"
+import { EventBus } from "../core/eventBus.js"
+import { PhysicsEntity } from "./physics_entity.js"
 import { World } from "../world/world.js"
 import { WorldUtils } from "../world/utils.js"
 import { CoinEntity } from "./coins.js"
 
-export class PlayerEntity extends Entity {
-  constructor(pos=new Vec2()) {
-    const ogPos = pos.clone();
-    pos.add(new Vec2(3, 2));
+export class PlayerEntity extends PhysicsEntity {
+  constructor(pos = new Vec2()) {
     super(pos);
-    this.prevPos = pos.clone();
-
-    if (ogPos.divided(World.TILE_SIZE).equals(World.spawnPos)) {
+    if (pos.divided(World.TILE_SIZE).equals(World.spawnPos)) {
       World.mainPlayer = this;
     }
-    
+    pos.add(new Vec2(3,2));
+    this.originPos = pos.clone();
+
+    // size
     this.standingSize = new Vec2(10,14);
     this.crouchingSize = new Vec2(10,14);
-
     this.size = this.standingSize;
     this.prevSize = this.size.clone();
 
@@ -29,7 +28,7 @@ export class PlayerEntity extends Entity {
     this.maxMoveSpeed = 180;
 
     this.minJumpHeight = 68;
-    this.maxJumpHeight = 84;
+    this.maxJumpHeight = 88;
 
     this.friction = 7.5;
     this.airFriction = 2.5;
@@ -46,11 +45,11 @@ export class PlayerEntity extends Entity {
     this.swipeDuration = 0.2;
     this.swipeCooldown = 0.35;
     this.swipeFrames = 5;
-    
+
     this.groundIdleFriction = 12;
     this.groundMoveFriction = 3;
     this.groundBrakeFriction = 25;
-    
+
     this.jumpBufferTime = 0.1;
     this.coyoteTime = 0.12;
     this.variableJumpCut = 0.5;
@@ -67,10 +66,13 @@ export class PlayerEntity extends Entity {
     this.runFPS = 8;
     this.runFrames = 4;
 
+    this.EPS_RESOLVE = 0.01;
+
     // trackers
     this.swipeTime = 0;
     this.swipeCooldownTime = 0;
     this.swipedSinceGrounded = false;
+    this.endedSwipeSinceGrounded = false;
     this.jumpBufferTimer = 0;
     this.coyoteTimer = 0;
     this.jumpHeld = false;
@@ -92,7 +94,7 @@ export class PlayerEntity extends Entity {
 
     // crouching & size
     const oldBottom = this.pos.y + this.size.y;
-    if (this.onGround && Game.keybinds['crouch']) {
+    if (this.onGround && Game.keybinds['crouch'] && this.swipeTime <= 0) {
       this.crouching = true;
       this.size = this.crouchingSize.clone();
       this.pos.y = oldBottom - this.size.y;
@@ -101,13 +103,7 @@ export class PlayerEntity extends Entity {
       const tryPosY = oldBottom - trySize.y;
       this.size = trySize;
       this.pos.y = tryPosY;
-      if (this._checkCollisionTilesVertical()) {
-        this.size = this.crouchingSize.clone();
-        this.pos.y = oldBottom - this.size.y;
-        this.crouching = true;
-      } else {
-        this.crouching = false;
-      }
+      this.crouching = false;
     }
 
     // jump buffering
@@ -124,20 +120,24 @@ export class PlayerEntity extends Entity {
 
     // swipe
     this.swipeTime = Math.max(0, this.swipeTime - dt);
+    if (this.swipeTime <= 0 && this.swipedSinceGrounded) {
+      this.endedSwipeSinceGrounded = true;
+    }
     this.swipeCooldownTime = Math.max(0, this.swipeCooldownTime - dt);
     if (Game.keybindsClicked['attack'] && this.swipeCooldownTime <= 0 && !this.crouching) {
       this.swipeTime = this.swipeDuration;
       this.swipeCooldownTime = this.swipeCooldown;
-      if (!this.onGround && !this.swipedSinceGrounded) {
+      if (!this.onGround && !(this.coyoteTimer > 0) && !this.swipedSinceGrounded) {
         this.swipedSinceGrounded = true;
+        this.endedSwipeSinceGrounded = false;
         this.vel.y = Math.min(this.vel.y, this.swipeVelocity);
       }
     }
-    if (this.swipeTime > 0 && !this.onGround && !this.swipedSinceGrounded) {
+    if (this.swipeTime > 0 && !this.onGround && !this.endedSwipeSinceGrounded) {
       this.vel.y = Math.min(this.vel.y, 0);
     }
 
-    // movement
+    // movement input
     let inputDir = 0;
     if (Game.keybinds['moveLeft']) inputDir -= 1;
     if (Game.keybinds['moveRight']) inputDir += 1;
@@ -149,7 +149,7 @@ export class PlayerEntity extends Entity {
     const vx = this.vel.x;
 
     if (inputDir !== 0) {
-      // same direction as current velocity / standing still
+      // forward / standing still
       if (Math.sign(vx) === inputDir || vx === 0) {
         const appliedAccel = accel;
         const preAbs = Math.abs(this.vel.x);
@@ -204,6 +204,7 @@ export class PlayerEntity extends Entity {
       this.jumpBufferTimer = 0;
       this.jumpHeld = true;
       this.jumpCutApplied = false;
+      this.coyoteTimer = 0;
     }
 
     // variable jump height
@@ -244,10 +245,7 @@ export class PlayerEntity extends Entity {
       this.vel.y *= Math.exp(-this.fallFriction * dt);
     }
 
-    // move player
-    this.prevPos = this.pos.clone();
-    this.prevSize = this.size.clone();
-    this.move(this.vel.times(dt));
+    this.moveDelta(this.vel.times(dt));
 
     // entity collision
     const nearby = World.queryEntitiesInAABB(
@@ -256,10 +254,11 @@ export class PlayerEntity extends Entity {
     );
     for (const e of nearby) {
       if (e === this) continue;
+      // collect coin
       if (e instanceof CoinEntity) {
         World.removeEntity(e);
+      // push players apart
       } else if (e instanceof PlayerEntity) {
-        // push players apart
         const dx = this.pos.x - e.pos.x;
         this.vel.x += (dx > 0 ? 1 : dx < 0 ? -1 : (Math.random() < 0.5 ? -1 : 1)) * 800 * dt;
       }
@@ -320,139 +319,24 @@ export class PlayerEntity extends Entity {
     return new Vec2(feet.x, feet.y - this.cameraVerticalOffset);
   }
 
-  move(delta) {
-    if (!delta || delta.isZero()) return;
-    const granularity = Math.max(Math.abs(this.size.x), Math.abs(this.size.y)) / 2 || 1;
-    const maxDelta = Math.max(Math.abs(delta.x), Math.abs(delta.y));
-    const steps = Math.max(1, Math.ceil(maxDelta / granularity));
-    const step = new Vec2(delta.x / steps, delta.y / steps);
+  kill() {
+    this.pos = this.originPos.clone();
+    this.vel = new Vec2();
     this.onGround = false;
-
-    for (let i = 0; i < steps; i++) {
-      // horizontal movement
-      if (step.x !== 0) {
-        this.pos.x += step.x;
-        const collisions = this._checkCollisionTilesHorizontal();
-        if (collisions) {
-          if (step.x > 0) {
-            let minTx = Infinity;
-            for (const c of collisions) if (c.tx < minTx) minTx = c.tx;
-            this.pos.x = (minTx * World.TILE_SIZE) - this.size.x;
-          } else {
-            let maxTx = -Infinity;
-            for (const c of collisions) if (c.tx > maxTx) maxTx = c.tx;
-            this.pos.x = (maxTx + 1) * World.TILE_SIZE;
-          }
-          this.vel.x = 0;
-        }
-      }
-
-      // vertical movement
-      if (step.y !== 0 && !this._checkCollisionTilesVertical()) {
-        this.pos.y += step.y;
-        const collisions = this._checkCollisionTilesVertical();
-        if (collisions) {
-          if (step.y > 0) {
-            // floor
-            let minTy = Infinity;
-            for (const c of collisions) if (c.ty < minTy) minTy = c.ty;
-            this.pos.y = (minTy * World.TILE_SIZE) - this.size.y;
-            this.onGround = true;
-            this.swipedSinceGrounded = false;
-          } else {
-            // ceiling
-            let maxTy = -Infinity;
-            for (const c of collisions) if (c.ty > maxTy) maxTy = c.ty;
-            this.pos.y = (maxTy + 1) * World.TILE_SIZE;
-          }
-          this.vel.y = 0;
-        }
-      }
-
-      // check on ground
-      if (!this.onGround) {
-        const probe = 1;
-        this.pos.y += probe;
-        const collisionsBelow = this._checkCollisionTilesVertical();
-        this.pos.y -= probe;
-        if (collisionsBelow) {
-          this.vel.y = 0;
-          this.onGround = true;
-          this.swipedSinceGrounded = false;
-          World.updateEntityPosition(this, this.pos);
-        }
-      }
-
-      World.updateEntityPosition(this, this.pos);
-    }
-  }
-  
-  _checkCollisionTilesHorizontal() {
-    const left = this.pos.x;
-    const top = this.pos.y;
-    const right = this.pos.x + this.size.x;
-    const bottom = this.pos.y + this.size.y;
-
-    const tileLeft = Math.floor(left / World.TILE_SIZE);
-    const tileTop = Math.floor(top / World.TILE_SIZE);
-    const tileRight = Math.floor((right - 1e-6) / World.TILE_SIZE);
-    const tileBottom = Math.floor((bottom - 1e-6) / World.TILE_SIZE);
-
-    const hits = [];
-
-    for (let tx = tileLeft; tx <= tileRight; tx++) {
-      for (let ty = tileTop; ty <= tileBottom; ty++) {
-        const tile = World.getTileAt(new Vec2(tx, ty), World.layers.GROUND);
-        const info = World.tileInfo?.[tile];
-        if (!info) continue;
-        if (info.solid) {
-          hits.push({ tx, ty, type: 'solid' });
-        }
-      }
-    }
-
-    return hits.length ? hits : null;
+    this.swipedSinceGrounded = false;
+    this.endedSwipeSinceGrounded = false;
+    this.jumpBufferTimer = 0;
+    this.coyoteTimer = 0;
+    this.jumpHeld = false;
+    this.jumpCutApplied = false;
   }
 
-  _checkCollisionTilesVertical() {
-    const left = this.pos.x;
-    const top = this.pos.y;
-    const right = this.pos.x + this.size.x;
-    const bottom = this.pos.y + this.size.y;
-
-    const tileLeft = Math.floor(left / World.TILE_SIZE);
-    const tileTop = Math.floor(top / World.TILE_SIZE);
-    const tileRight = Math.floor((right - 1e-6) / World.TILE_SIZE);
-    const tileBottom = Math.floor((bottom - 1e-6) / World.TILE_SIZE);
-
-    const hits = [];
-
-    const prevBottom = (this.prevPos?.y ?? this.pos.y) + (this.prevSize?.y ?? this.size.y);
-    const EPS = 1e-6;
-    const movingDown = (this.vel.y > 0 - EPS);
-
-    for (let tx = tileLeft; tx <= tileRight; tx++) {
-      for (let ty = tileTop; ty <= tileBottom; ty++) {
-        const tile = World.getTileAt(new Vec2(tx, ty), World.layers.GROUND);
-        const info = World.tileInfo?.[tile];
-        if (!info) continue;
-
-        if (info.solid) {
-          hits.push({ tx, ty, type: 'solid' });
-          continue;
-        }
-
-        if (info.semisolid) {
-          const tileTopY = ty * World.TILE_SIZE;
-          const wasAbove = prevBottom <= tileTopY + EPS;
-          const isNowOver = bottom > tileTopY + EPS;
-          if (movingDown && wasAbove && isNowOver) {
-            hits.push({ tx, ty, type: 'semisolid' });
-          }
-        }
-      }
+  onTileCollision(collision) {
+    if (collision.info?.damages) {
+      this.kill();
     }
-
-    return hits.length ? hits : null;
+    if (collision.info?.goal) {
+      EventBus.emit('player:reached_goal', this);
+    }
   }
 }

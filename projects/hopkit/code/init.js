@@ -6,6 +6,8 @@ import { Renderer } from "./core/rendering.js"
 
 async function init() {
   Game.canvas = document.getElementById('gameCanvas');
+  Game.textInput = document.getElementById('textInput');
+  Game.fileInput = document.getElementById('fileInput');
   Game.ctx = Game.canvas.getContext('2d');
   Game.dpr = window.devicePixelRatio || 1;
 
@@ -26,14 +28,12 @@ function update(timestamp) {
   Game.lastTimestamp = timestamp;
   Game.gameTime += actualDt;
 
-  Core.update(Game.dt);
+  if (Game.keybindsClicked['stepFrame'] || !Game.keybinds['frameByFrame']) {
+    Core.update(Game.dt);
+    if (Game.mousePos) Game.prevMousePos = Game.mousePos.clone();
+  }
   Renderer.draw(Game.ctx);
 
-  Game.inputsClicked = {};
-  Game.inputsReleased = {};
-  Game.keybindsClicked = {};
-  Game.keybindsReleased = {};
-  if (Game.mousePos) Game.prevMousePos = Game.mousePos.clone();
   Game.recentFrameTimes.push(performance.now() - frameStart);
 }
 

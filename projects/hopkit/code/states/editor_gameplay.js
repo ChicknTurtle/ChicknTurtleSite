@@ -9,6 +9,10 @@ export const EditorGameplayState = {}
 
 EditorGameplayState.enter = function(payload) {
   UI.managers.editor_gameplay = new UI.Manager();
+
+  EditorGameplayState._eb_stop_level = () => EditorGameplayState.stopLevel();
+  EventBus.on('player:reached_goal', EditorGameplayState._eb_stop_level);
+
   GameplayState.readyGameplay();
 }
 
@@ -16,13 +20,20 @@ EditorGameplayState.exit = function() {
   GameplayState.destroyGameplay();
   if (UI.managers.editor_gameplay) UI.managers.editor_gameplay.destroyAll();
   delete UI.managers.editor_gameplay;
+
+  EventBus.off('player:reached_goal', EditorGameplayState._eb_stop_level); 
+  EditorGameplayState._eb_stop_level = null;
+}
+
+EditorGameplayState.stopLevel = function() {
+  EventBus.emit('state:request', 'editor');
+  EventBus.emit('worldio:load_autosave');
 }
 
 EditorGameplayState.update = function(dt) {
   UI.managers.editor_gameplay.show('StopButton', () =>
     new EditorElements.PlayButton(() => {
-      EventBus.emit('state:request', 'editor');
-      EventBus.emit('worldio:load_autosave');
+      EditorGameplayState.stopLevel();
     })
   );
   UI.managers.editor_gameplay.tick();

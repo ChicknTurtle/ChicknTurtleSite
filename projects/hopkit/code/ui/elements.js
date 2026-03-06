@@ -13,6 +13,7 @@ Elements.Element = class {
     this.pivot = UI.anchor('left', 'top');
     this.pos = pos;
     this.size = size;
+    this.z = 0;
   }
   tick() {
   }
@@ -24,6 +25,24 @@ Elements.Element = class {
       v.x * this.anchor.x + this.pos.x - this.size.x * this.pivot.x,
       v.y * this.anchor.y + this.pos.y - this.size.y * this.pivot.y
     );
+  }
+}
+
+Elements.Background = class extends Elements.Element {
+  constructor(pos = new Vec2(), color = 'rgba(0,0,0,0.5)') {
+    super(pos, new Vec2(0,0));
+    this.color = color;
+    this.size.x = Game.canvas.width / Game.dpr;
+    this.size.y = Game.canvas.height / Game.dpr;
+  }
+  tick() {
+    this.size.x = Game.canvas.width / Game.dpr;
+    this.size.y = Game.canvas.height / Game.dpr;
+  }
+  draw(ctx) {
+    const pos = this.getScreenPos();
+    ctx.fillStyle = this.color;
+    ctx.fillRect(pos.x, pos.y, this.size.x, this.size.y);
   }
 }
 
@@ -61,20 +80,9 @@ Elements.Button = class extends Elements.Element {
     this.anchor = UI.anchor('center', 'center');
     this.pivot = UI.anchor('center', 'center');
   }
-  updateHover() {
-    const p = this.getScreenPos();
-    if (Game.mousePos) {
-      const m = Game.mousePos;
-      this.hover = (
-        m.x >= p.x &&
-        m.x <= p.x + this.size.x &&
-        m.y >= p.y &&
-        m.y <= p.y + this.size.y
-      )
-      if (this.hover && !this.disabled) {
-        Game.setCursor('pointer');
-      }
-    }
+  updateHover(to) {
+    this.hover = !!to && !this.disabled;
+    if (this.hover) Game.setCursor('pointer');
   }
   checkClicked() {
     const clicked = (Game.inputsClicked && Game.inputsClicked['Mouse0']);
@@ -87,8 +95,6 @@ Elements.Button = class extends Elements.Element {
   tick() {
     const pos = this.getScreenPos();
     this.screenPos = pos;
-    this.updateHover();
-    this.checkClicked();
   }
   draw(ctx) {
     const pos = this.screenPos || this.getScreenPos();

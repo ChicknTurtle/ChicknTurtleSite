@@ -43,7 +43,10 @@ EditorElements.SaveButton = class extends Elements.Button {
     this.anchor = new Vec2(1,0);
     this.pivot = new Vec2(1,0);
     this.onClick = () => {
-      EventBus.emit('worldio:save_to_file');
+      //EventBus.emit('worldio:save_to_file');
+      UI.managers.editor.show('SavePopup', () =>
+        new EditorElements.SavePopup()
+      );
     }
   }
   draw(ctx) {
@@ -68,7 +71,10 @@ EditorElements.LoadButton = class extends Elements.Button {
     this.anchor = new Vec2(1,0);
     this.pivot = new Vec2(1,0);
     this.onClick = () => {
-      EventBus.emit('worldio:load_from_file');
+      //EventBus.emit('worldio:load_from_file');
+      UI.managers.editor.show('LoadPopup', () =>
+        new EditorElements.LoadPopup()
+      );
     }
   }
   draw(ctx) {
@@ -209,7 +215,8 @@ EditorElements.PaletteBackground = class extends Elements.Element {
   }
   tick() {
     super.tick();
-    if (!Editor.viewingPalette) {
+    this.visible = Editor.viewingPalette;
+    if (!this.visible) {
       Editor.palette.forEach((tile, idx) => {
         UI.managers.editor.destroy(`PaletteMenuButton_${idx}`);
       })
@@ -217,20 +224,172 @@ EditorElements.PaletteBackground = class extends Elements.Element {
     };
     this.size.y = Game.canvas.height/Game.dpr-Editor.SIDEBAR_HEIGHT+8;
     Editor.palette.forEach((tile, idx) => {
-      if (!UI.managers.editor.elements[`PaletteMenuButton_${idx}`]) {
-        UI.managers.editor.show(`PaletteMenuButton_${idx}`, () =>
-          new EditorElements.PaletteMenuButton(idx)
-        );
-      } else {
-        UI.managers.editor.elements[`PaletteMenuButton_${idx}`].tile = tile;
-      }
+      UI.managers.editor.show(`PaletteMenuButton_${idx}`, () =>
+        new EditorElements.PaletteMenuButton(idx)
+      );
+      UI.managers.editor.get(`PaletteMenuButton_${idx}`).tile = tile;
     })
   }
   draw(ctx) {
-    if (!Editor.viewingPalette) return;
-    ctx.imageSmoothingEnabled = false;
     const pos = this.getScreenPos();
     drawNineSlice(ctx, Game.textures['editor'], 24, 24, [4,4,4,4], pos.x, pos.y, this.size.x, this.size.y, 157, 56, 2);
+  }
+}
+
+EditorElements.Popup = class extends Elements.Element {
+  constructor() {
+    super(new Vec2(0,0), new Vec2(400,300));
+    this.anchor = new Vec2(0.5,0.5);
+    this.pivot = new Vec2(0.5,0.5);
+    this.z = 100;
+  }
+  tick() {
+    super.tick();
+    if (!Editor.hasPopup) {
+      UI.managers.editor.destroy('PopupBackground');
+      UI.managers.editor.destroy('PopupCloseButton');
+      UI.managers.editor.destroy(this);
+      return;
+    }
+    UI.managers.editor.show('PopupBackground', () =>
+      new Elements.Background()
+    );
+    UI.managers.editor.get('PopupBackground').z = 99;
+    UI.managers.editor.show('PopupCloseButton', () =>
+      new EditorElements.PopupCloseButton()
+    );
+    if (Game.keybindsClicked['exitMenu']) {
+      Editor.hasPopup = false;
+    }
+  }
+  draw(ctx) {
+    ctx.imageSmoothingEnabled = false;
+    const pos = this.getScreenPos();
+    drawNineSlice(ctx, Game.textures['editor'], 24, 24, [4,4,4,4], pos.x, pos.y, this.size.x, this.size.y, 185, 56, 2);
+  }
+}
+
+EditorElements.SavePopup = class extends EditorElements.Popup {
+  constructor() {
+    super();
+    Editor.hasPopup = true;
+  }
+  tick() {
+    if (!Editor.hasPopup) {
+      UI.managers.editor.destroy('PopupButton1');
+      UI.managers.editor.destroy('PopupButton2');
+    }
+    super.tick();
+    if (!Editor.hasPopup) {
+      return;
+    }
+    UI.managers.editor.show('PopupButton1', () => 
+      new EditorElements.PopupButton(new Vec2(0,-60), 'Save to File', () => {
+        EventBus.emit('worldio:save_to_file');
+        Editor.hasPopup = false;
+      })
+    );
+    UI.managers.editor.show('PopupButton2', () => 
+      new EditorElements.PopupButton(new Vec2(0,0), 'Copy Level Code', () => {
+        EventBus.emit('worldio:copy_level_code');
+        Editor.hasPopup = false;
+      })
+    );
+  }
+  draw(ctx) {
+    super.draw(ctx);
+    const pos = this.getScreenPos();
+    ctx.fillStyle = 'white';
+    ctx.font = `24px Pixellari`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    Text.parse(`<shadow:2,2,black>Save Level`).draw(ctx, pos.plus(this.size.divided(2)).plus(new Vec2(0,-120)))
+  }
+}
+
+EditorElements.LoadPopup = class extends EditorElements.Popup {
+  constructor() {
+    super();
+    Editor.hasPopup = true;
+  }
+  tick() {
+    if (!Editor.hasPopup) {
+      UI.managers.editor.destroy('PopupButton1');
+      UI.managers.editor.destroy('PopupButton2');
+    }
+    super.tick();
+    if (!Editor.hasPopup) {
+      return;
+    }
+    UI.managers.editor.show('PopupButton1', () => 
+      new EditorElements.PopupButton(new Vec2(0,-60), 'Load from File', () => {
+        EventBus.emit('worldio:load_from_file');
+        Editor.hasPopup = false;
+      })
+    );
+    UI.managers.editor.show('PopupButton2', () => 
+      new EditorElements.PopupButton(new Vec2(0,0), 'Load from Code', () => {
+        EventBus.emit('worldio:load_from_code');
+        Editor.hasPopup = false;
+      })
+    );
+  }
+  draw(ctx) {
+    super.draw(ctx);
+    const pos = this.getScreenPos();
+    ctx.fillStyle = 'white';
+    ctx.font = `24px Pixellari`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    Text.parse(`<shadow:2,2,black>Load Level`).draw(ctx, pos.plus(this.size.divided(2)).plus(new Vec2(0,-120)))
+  }
+}
+
+EditorElements.PopupCloseButton = class extends Elements.Button {
+  constructor() {
+    super(new Vec2(-400/2+6, -300/2+6), new Vec2(26,26));
+    this.anchor = new Vec2(0.5,0.5);
+    this.pivot = new Vec2(0,0);
+    this.z = 101;
+    this.onClick = () => {
+      Editor.hasPopup = false;
+    }
+  }
+  draw(ctx) {
+    ctx.imageSmoothingEnabled = false;
+    const pos = this.getScreenPos();
+    if (this.hover) {
+      ctx.drawImage(Game.textures['editor'], 210, 70, 13, 13, pos.x, pos.y, this.size.x, this.size.y);
+    } else {
+      ctx.drawImage(Game.textures['editor'], 210, 56, 13, 13, pos.x, pos.y, this.size.x, this.size.y);
+    }
+  }
+}
+
+EditorElements.PopupButton = class extends Elements.Button {
+  constructor(pos=new Vec2(), text='Button', onClick=null) {
+    super(pos, new Vec2(200,50));
+    this.anchor = new Vec2(0.5,0.5);
+    this.pivot = new Vec2(0.5,0.5);
+    this.z = 101;
+    this.text = text;
+    this.onClick = onClick;
+  }
+  draw(ctx) {
+    ctx.imageSmoothingEnabled = false;
+    const pos = this.getScreenPos();
+    if (this.hover) {
+      drawNineSlice(ctx, Game.textures['editor'], 24, 24, [4,4,4,4], pos.x, pos.y, this.size.x, this.size.y, 104, 50, 2);
+    } else {
+      drawNineSlice(ctx, Game.textures['editor'], 24, 24, [4,4,4,4], pos.x, pos.y, this.size.x, this.size.y, 79, 50, 2);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '24px Pixellari';
+    const text = new Text.Component(this.text);
+    text.effects.shadowColor = 'black';
+    text.effects.shadowOffset = new Vec2(2,2);
+    Text.draw(ctx, text, pos.plus(this.size.times(0.5)));
   }
 }
 
@@ -241,6 +400,7 @@ EditorElements.PaletteMenuButton = class extends Elements.Button {
     this.tile = Editor.palette[index];
     this.anchor = new Vec2(1,0);
     this.pivot = new Vec2(1,0);
+    this.z = 5;
     this.updatePos();
     this.onClick = () => {
       const idx = Editor.hotbar.findIndex(t => t && t.type === this.tile.type && t.id === this.tile.id);

@@ -11,28 +11,39 @@ export const Editor = {
   SIDEBAR_WIDTH: 70,
   SIDEBAR_HEIGHT: 70,
   PALETTE_WIDTH: 376,
+  MAX_AUTOSAVE_TIME: 5,
   selectedTile: null,
   selectedHotbarIndex: 0,
   palette: [
     { type:'tile', id:'wall' },
+    { type:'tile', id:'hard_block' },
+    { type:'tile', id:'solid_block' },
     { type:'tile', id:'grass' },
     { type:'tile', id:'dirt' },
     { type:'tile', id:'platform' },
     { type:'tile', id:'wall_metal' },
+    { type:'tile', id:'wall_metal_pillar' },
     { type:'tile', id:'wall_dirt' },
     { type:'tile', id:'gold' },
     { type:'tile', id:'ruby' },
     { type:'tile', id:'diamond' },
     { type:'tile', id:'emerald' },
     { type:'tile', id:'bush' },
+    { type:'tile', id:'spike' },
+    { type:'tile', id:'floor_spike' },
+    { type:'tile', id:'floor_spike_tall' },
+    { type:'tile', id:'floor_spike_small' },
     { type:'entity', id:'player' },
     { type:'entity', id:'coin' },
+    { type:'tile', id:'goal_orb' },
   ],
   hotbar: [],
   erasing: false,
   showGrid: true,
   viewingPalette: false,
+  hasPopup: false,
   lastAutosave: 0,
+  unsavedChanges: false,
 }
 
 Editor.moveHotbarIndexToFront = function(idx) {
@@ -49,13 +60,6 @@ Editor.getFitHotbarIcons = function() {
 
 Editor.switchHotbar = function(index) {
   Editor.selectedHotbarIndex = Math.min(index, Editor.getFitHotbarIcons()-1);
-}
-
-Editor.bufferedAutosave = function(force=false) {
-  if (force || Game.gameTime > Editor.lastAutosave + 1) {
-    Editor.lastAutosave = Game.gameTime;
-    EventBus.emit('worldio:autosave');
-  }
 }
 
 Editor.zoomCamera = function(amount, pos) {
@@ -83,12 +87,10 @@ Editor.enter = function(payload) {
 
   Editor._eb_zoom = (p) => Editor.zoomCamera(p.amount, p.pos);
   Editor._eb_pan = (p) => Editor.panCamera(p.delta);
-  Editor._eb_autosave = (p) => Editor.bufferedAutosave(p);
   Editor._eb_switch_hotbar = (p) => Editor.switchHotbar(p);
 
   EventBus.on('editor:zoom', Editor._eb_zoom);
   EventBus.on('editor:pan', Editor._eb_pan);
-  EventBus.on('editor:autosave', Editor._eb_autosave);
   EventBus.on('editor:switch_hotbar', Editor._eb_switch_hotbar);
 
   // back button
@@ -123,7 +125,7 @@ Editor.enter = function(payload) {
   UI.managers.editor.show('load_button', () =>
     new EditorElements.LoadButton()
   );
-  // palette background
+  // palette
   UI.managers.editor.show('PaletteBackground', () =>
     new EditorElements.PaletteBackground()
   );
@@ -158,7 +160,7 @@ Editor.update = function(dt) {
   }
   Editor.selectedTile = Editor.hotbar[Editor.selectedHotbarIndex];
 
-  if (Game.mousePos && Game.mousePos.y > Editor.SIDEBAR_HEIGHT && Game.mousePos.x < Game.canvas.width*(1/Game.dpr)-(Editor.SIDEBAR_WIDTH+(Editor.viewingPalette ? Editor.PALETTE_WIDTH : 0))) {
+  if (!Editor.hasPopup && Game.mousePos && Game.mousePos.y > Editor.SIDEBAR_HEIGHT && Game.mousePos.x < Game.canvas.width*(1/Game.dpr)-(Editor.SIDEBAR_WIDTH+(Editor.viewingPalette ? Editor.PALETTE_WIDTH : 0))) {
     // pan
     if (Game.inputs['Mouse2'] || Game.inputsClicked['Mouse2']) {
       EventBus.emit('editor:pan', { delta: Game.mouseVel.divided(World.cam.zoom) });
@@ -208,7 +210,8 @@ Editor.update = function(dt) {
   const sidebarWidth = (Editor.viewingPalette ? Editor.SIDEBAR_WIDTH + Editor.PALETTE_WIDTH : Editor.SIDEBAR_WIDTH);
   const prevMousePos = Game.prevMousePos ?? Game.mousePos;
   if (Game.mousePos &&
-    ((Game.inputs['Mouse0'] || Game.inputsClicked['Mouse0']) || (Game.inputs['Mouse1'] || Game.inputsClicked['Mouse1'])) &&
+    (!Editor.hasPopup &&
+    (Game.inputs['Mouse0'] || Game.inputsClicked['Mouse0']) || (Game.inputs['Mouse1'] || Game.inputsClicked['Mouse1'])) &&
     Game.mousePos.x > 0 &&
     Game.mousePos.x < Game.canvas.width*(1/Game.dpr) - sidebarWidth &&
     Game.mousePos.y > Editor.SIDEBAR_HEIGHT &&
@@ -226,8 +229,10 @@ Editor.update = function(dt) {
         Editor.moveHotbarIndexToFront(Editor.selectedHotbarIndex);
       });
     }
-    EventBus.emit('editor:autosave');
+    Editor.unsavedChanges = true;
   }
+
+  // ui
 
   // always show correct amount of palette icons
   const fitHotbarIcons = Editor.getFitHotbarIcons();
@@ -241,15 +246,23 @@ Editor.update = function(dt) {
   UI.managers.editor.hotbarIcons = UI.managers.editor.hotbarIcons.filter(element => element.index < fitHotbarIcons);
   // create needed
   for (let i = 0; i < fitHotbarIcons; i++) {
-    if (!UI.managers.editor.elements[`HotbarIcon_${i}`]) {
+    if (!UI.managers.editor.get(`HotbarIcon_${i}`)) {
       UI.managers.editor.show(`HotbarIcon_${i}`, () =>
         new EditorElements.HotbarIcon(i)
       );
-      UI.managers.editor.hotbarIcons.push(UI.managers.editor.elements[`HotbarIcon_${i}`]);
+      UI.managers.editor.hotbarIcons.push(UI.managers.editor.get(`HotbarIcon_${i}`));
     }
   }
 
   UI.managers.editor && UI.managers.editor.tick && UI.managers.editor.tick();
+
+  // autosave if unsaved changes
+  if (Editor.unsavedChanges && Game.gameTime > Editor.lastAutosave + Editor.MAX_AUTOSAVE_TIME) {
+    Editor.lastAutosave = Game.gameTime;
+    Editor.unsavedChanges = false;
+    EventBus.emit('worldio:autosave');
+    console.log("Autosaved");
+  }
 }
 
 Editor.draw = function(ctx) {

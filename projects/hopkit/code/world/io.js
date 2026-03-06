@@ -1,10 +1,10 @@
-
 import { Vec2 } from "./../utils/lib.js"
 import { Game } from "./../game.js"
 import { World } from "./world.js"
+import { LZString } from "./../lib/lz-string.js";
 
 export const WorldIO = {
-  version: 1,
+  version: 2,
   FILE_EXT: 'json',
 
   _rleEncode(arr) {
@@ -39,7 +39,7 @@ export const WorldIO = {
     const S = World.CHUNK_SIZE | 0;
     const chunksSrc = World.chunks || World.loadedChunks || {};
 
-    // palette of all tile names on all layers
+    // build palette
     const paletteSet = new Set([null]);
     for (const key in chunksSrc) {
       const chunk = chunksSrc[key];
@@ -54,9 +54,7 @@ export const WorldIO = {
           if (!row) continue;
           for (let c = 0; c < S; c++) {
             const t = row[c];
-            if (t !== null && t !== undefined) {
-              paletteSet.add(t);
-            }
+            if (t !== null && t !== undefined) paletteSet.add(t);
           }
         }
       }
@@ -69,18 +67,27 @@ export const WorldIO = {
       idOf[name] = i;
     }
 
+    const kMap = Object.create(null);
+    const kArr = [];
+    function keyIndex(key) {
+      if (!kMap.hasOwnProperty(key)) {
+        kMap[key] = kArr.length;
+        kArr.push(key);
+      }
+      return kMap[key];
+    }
+
     const save = {
-      version: this.version,
-      palette,
-      chunkSize: [S, S],
-      chunks: [],
+      v: this.version,
+      p: palette,
+      c: []
     };
 
     for (const key in chunksSrc) {
       const chunk = chunksSrc[key];
       if (!chunk || !chunk.layers) continue;
 
-      const layersData = {};
+      const layersArr = [];
       let chunkHasData = false;
 
       for (const layerKey of Object.keys(chunk.layers)) {
@@ -102,7 +109,7 @@ export const WorldIO = {
           }
         }
 
-        const tdList = [];
+        const tdFlat = [];
         const td = layer.tiledata;
         if (td && typeof td === "object") {
           for (const coord in td) {
@@ -117,17 +124,21 @@ export const WorldIO = {
             if (x < 0 || x >= S || y < 0 || y >= S) continue;
 
             const idx1D = y * S + x;
-            tdList.push([idx1D, Object.entries(obj)]);
+            tdFlat.push(idx1D);
+            tdFlat.push(keys.length);
+            for (let ki = 0; ki < keys.length; ki++) {
+              const kk = keys[ki];
+              const kidx = keyIndex(String(kk));
+              tdFlat.push(kidx);
+              tdFlat.push(obj[kk]);
+            }
           }
         }
 
         // skip empty layers
-        if (allNull && tdList.length === 0) continue;
+        if (allNull && tdFlat.length === 0) continue;
 
-        layersData[layerKey] = {
-          t: this._rleEncode(flat),
-          td: tdList
-        };
+        layersArr.push([layerKey | 0, this._rleEncode(flat), tdFlat]);
         chunkHasData = true;
       }
 
@@ -138,12 +149,10 @@ export const WorldIO = {
         ? [pos.x | 0, pos.y | 0]
         : key.split(",").map(v => v | 0);
 
-      save.chunks.push([
-        posArr,
-        { layers: layersData }
-      ]);
+      save.c.push([posArr[0], posArr[1], layersArr]);
     }
 
+    if (kArr.length) save.k = kArr;
     return save;
   },
 
@@ -152,117 +161,236 @@ export const WorldIO = {
       console.log("Savedata is undefined or invalid type");
       return "Savedata is undefined or invalid type";
     }
-    if (!saveData.palette) {
+
+    const palette = Array.isArray(saveData.p)
+      ? saveData.p
+      : (Array.isArray(saveData.palette) ? saveData.palette : null);
+
+    if (!Array.isArray(palette)) {
       console.warn("Savedata is missing palette property");
       return "Savedata is missing palette property";
     }
-    if (!saveData.chunkSize) {
-      console.warn("Savedata is missing chunkSize property");
-      return "Savedata is missing chunkSize property";
-    }
-    if (!saveData.chunks) {
-      console.warn("Savedata is missing chunks property");
-      return "Savedata is missing chunks property";
-    }
 
     const S = World.CHUNK_SIZE | 0;
-    const palette = Array.isArray(saveData.palette) ? saveData.palette : [];
     const nameOf = (i) => (palette[i] === null ? null : palette[i]);
 
     const newChunks = {};
     let loaded = 0;
 
-    for (let n = 0; n < saveData.chunks.length; n++) {
-      const entry = saveData.chunks[n];
-      if (!Array.isArray(entry) || entry.length < 2) continue;
+    const rawChunks = Array.isArray(saveData.c) ? saveData.c
+      : (Array.isArray(saveData.chunks) ? saveData.chunks : null);
 
-      const posArr = entry[0];
-      const data = entry[1] || {};
-      if (!Array.isArray(posArr) || posArr.length !== 2) continue;
+    if (!Array.isArray(rawChunks)) {
+      console.warn("Savedata is missing chunks property");
+      return "Savedata is missing chunks property";
+    }
 
-      const x = posArr[0] | 0;
-      const y = posArr[1] | 0;
+    const isV2 = String(saveData.v) === "2";
 
-      const layersRaw = data.layers || {
-        [(World.layers && World.layers.GROUND) || 0]: data
-      };
+    const kArr = Array.isArray(saveData.k) ? saveData.k : [];
 
-      const pos = new Vec2(x, y);
-      const chunk = new World.Chunk(pos);
-      let chunkHasData = false;
+    for (let n = 0; n < rawChunks.length; n++) {
+      const entry = rawChunks[n];
+      if (!Array.isArray(entry)) continue;
 
-      for (const layerKey of Object.keys(layersRaw)) {
-        const layerData = layersRaw[layerKey] || {};
-        const flat = this._rleDecodeFlat(layerData.t);
+      if (isV2 && entry.length >= 3 && Array.isArray(entry[2])) {
+        const x = entry[0] | 0;
+        const y = entry[1] | 0;
+        const layersArr = entry[2];
 
-        if (flat.length === 0) continue;
-        if (flat.length !== S * S) {
-          console.warn(
-            `RLE length mismatch for chunk [${x},${y}] layer ${layerKey} ` +
-            `(got ${flat.length}, expected ${S * S})`
-          );
-          return `RLE length mismatch for chunk [${x},${y}] layer ${layerKey} (got ${flat.length}, expected ${S * S})`;
-        }
+        const pos = new Vec2(x, y);
+        const chunk = new World.Chunk(pos);
+        let chunkHasData = false;
 
-        const layerIndex = layerKey | 0;
-        const layerObj = chunk.initLayer(layerIndex);
-        const tiles = layerObj.tiles;
-        let idx = 0;
-        let tileCount = 0;
+        for (let li = 0; li < layersArr.length; li++) {
+          const la = layersArr[li];
+          if (!Array.isArray(la) || la.length < 2) continue;
+          const layerIndex = la[0] | 0;
+          const tRLE = Array.isArray(la[1]) ? la[1] : [];
+          const tdFlat = Array.isArray(la[2]) ? la[2] : [];
 
-        for (let r = 0; r < S; r++) {
-          const row = tiles[r];
-          for (let c = 0; c < S; c++) {
-            const tileName = nameOf(flat[idx++] ?? 0);
-            row[c] = tileName;
-            if (tileName !== null && tileName !== undefined) {
-              tileCount++;
+          const flat = this._rleDecodeFlat(tRLE);
+          if (flat.length === 0) continue;
+          if (flat.length !== S * S) {
+            console.warn(
+              `RLE length mismatch for chunk [${x},${y}] layer ${layerIndex} ` +
+              `(got ${flat.length}, expected ${S * S})`
+            );
+            return `RLE length mismatch for chunk [${x},${y}] layer ${layerIndex} (got ${flat.length}, expected ${S * S})`;
+          }
+
+          const layerObj = chunk.initLayer(layerIndex);
+          const tiles = layerObj.tiles;
+          let idx = 0;
+          let tileCount = 0;
+
+          for (let r = 0; r < S; r++) {
+            const row = tiles[r];
+            for (let c = 0; c < S; c++) {
+              const tileName = nameOf(flat[idx++] ?? 0);
+              row[c] = tileName;
+              if (tileName !== null && tileName !== undefined) tileCount++;
             }
           }
-        }
 
-        layerObj.tileCount = tileCount;
-        layerObj.tiledata = layerObj.tiledata || {};
+          layerObj.tileCount = tileCount;
+          layerObj.tiledata = layerObj.tiledata || {};
 
-        const tdList = layerData.td || [];
-        if (Array.isArray(tdList)) {
-          for (let k = 0; k < tdList.length; k++) {
-            const pair = tdList[k];
-            if (!Array.isArray(pair) || pair.length < 2) continue;
-            const i = pair[0] | 0;
-            const entries = pair[1];
-            const r = (i / S) | 0;
-            const c = i % S;
+          for (let p = 0; p < tdFlat.length;) {
+            const idx1D = tdFlat[p++] | 0;
+            const pairCount = tdFlat[p++] | 0;
+            const entries = [];
+            for (let pi = 0; pi < pairCount; pi++) {
+              const kidx = tdFlat[p++] | 0;
+              const keyName = (kArr[kidx] !== undefined ? kArr[kidx] : String(kidx));
+              const val = tdFlat[p++];
+              entries.push([keyName, val]);
+            }
+
+            const r = (idx1D / S) | 0;
+            const c = idx1D % S;
             if (r < 0 || r >= S || c < 0 || c >= S) continue;
-
-            const obj = Object.fromEntries(Array.isArray(entries) ? entries : []);
+            const obj = Object.fromEntries(entries);
             if (obj && Object.keys(obj).length) {
               layerObj.tiledata[`${c},${r}`] = obj;
             }
           }
+
+          // drop empty layers
+          if (tileCount === 0 && Object.keys(layerObj.tiledata).length === 0) {
+            delete chunk.layers[layerIndex];
+          } else {
+            chunkHasData = true;
+          }
         }
 
-        // drop empty layers
-        if (tileCount === 0 && Object.keys(layerObj.tiledata).length === 0) {
-          delete chunk.layers[layerIndex];
-        } else {
-          chunkHasData = true;
-        }
+        if (!chunkHasData) continue;
+        chunk.rerender = true;
+        newChunks[`${x},${y}`] = chunk;
+        loaded++;
+        continue;
       }
 
-      if (!chunkHasData) continue;
+      // fallback v1 format
+      if (entry.length >= 2 && Array.isArray(entry[0]) && entry[0].length === 2) {
+        const posArr = entry[0];
+        const data = entry[1] || {};
+        const x = posArr[0] | 0;
+        const y = posArr[1] | 0;
 
-      chunk.rerender = true;
-      newChunks[`${x},${y}`] = chunk;
-      loaded++;
+        const layersRaw = (data.l ?? data.layers) || {
+          [(World.layers && World.layers.GROUND) || 0]: data
+        };
+
+        const pos = new Vec2(x, y);
+        const chunk = new World.Chunk(pos);
+        let chunkHasData = false;
+
+        for (const layerKey of Object.keys(layersRaw)) {
+          const layerData = layersRaw[layerKey] || {};
+          const flat = this._rleDecodeFlat(layerData.t);
+
+          if (flat.length === 0) continue;
+          if (flat.length !== S * S) {
+            console.warn(
+              `RLE length mismatch for chunk [${x},${y}] layer ${layerKey} ` +
+              `(got ${flat.length}, expected ${S * S})`
+            );
+            return `RLE length mismatch for chunk [${x},${y}] layer ${layerKey} (got ${flat.length}, expected ${S * S})`;
+          }
+
+          const layerIndex = layerKey | 0;
+          const layerObj = chunk.initLayer(layerIndex);
+          const tiles = layerObj.tiles;
+          let idx = 0;
+          let tileCount = 0;
+
+          for (let r = 0; r < S; r++) {
+            const row = tiles[r];
+            for (let c = 0; c < S; c++) {
+              const tileName = nameOf(flat[idx++] ?? 0);
+              row[c] = tileName;
+              if (tileName !== null && tileName !== undefined) tileCount++;
+            }
+          }
+
+          layerObj.tileCount = tileCount;
+          layerObj.tiledata = layerObj.tiledata || {};
+
+          const tdList = (layerData.d ?? layerData.td) || [];
+          if (Array.isArray(tdList)) {
+            for (let k = 0; k < tdList.length; k++) {
+              const pair = tdList[k];
+              if (!Array.isArray(pair) || pair.length < 2) continue;
+              const i = pair[0] | 0;
+              const entries = pair[1];
+              const r = (i / S) | 0;
+              const c = i % S;
+              if (r < 0 || r >= S || c < 0 || c >= S) continue;
+
+              const obj = Object.fromEntries(Array.isArray(entries) ? entries : []);
+              if (obj && Object.keys(obj).length) {
+                layerObj.tiledata[`${c},${r}`] = obj;
+              }
+            }
+          }
+
+          if (tileCount === 0 && Object.keys(layerObj.tiledata).length === 0) {
+            delete chunk.layers[layerIndex];
+          } else {
+            chunkHasData = true;
+          }
+        }
+
+        if (!chunkHasData) continue;
+        chunk.rerender = true;
+        newChunks[`${x},${y}`] = chunk;
+        loaded++;
+        continue;
+      }
     }
 
-    console.debug(`Successfully loaded savedata (${loaded} chunk(s), version:${saveData.version ?? 'unknown'})`);
+    console.debug(`Successfully loaded savedata (${loaded} chunk(s), version:${saveData.v ?? saveData.version ?? 'unknown'})`);
     World.chunks = newChunks;
-
     return true;
   }
 };
+
+WorldIO.encodeLevel = function(data) {
+  return LZString.compressToBase64(JSON.stringify(data));
+}
+
+WorldIO.decodeLevel = function(code) {
+  return JSON.parse(LZString.decompressFromBase64(code));
+}
+
+WorldIO.copyLevelCode = function() {
+  const saveData = WorldIO.getSaveData();
+  const code = WorldIO.encodeLevel(saveData);
+  navigator.clipboard.writeText(code).then(() => {
+    console.log("Level code copied to clipboard", code);
+    alert("Level code copied to clipboard:\n\n" + code);
+  }).catch(err => {
+    console.error("Failed to copy level code: ", err);
+    alert("Failed to copy level code: " + err);
+  });
+}
+
+WorldIO.loadFromCode = function() {
+  const code = prompt("Paste level code:");
+  if (!code) return;
+  try {
+    const saveData = WorldIO.decodeLevel(code);
+    const result = WorldIO.loadSaveData(saveData);
+    if (result !== true) {
+      alert(`Failed to load world from code: ${result}`);
+    } else {
+      WorldIO.autosave();
+    }
+  } catch (err) {
+    alert(`Failed to load world from code: ${err}`);
+  }
+}
 
 WorldIO.saveToFile = function() {
   console.log("Saving world to file...");
@@ -286,13 +414,21 @@ WorldIO.saveToFile = function() {
 WorldIO.loadFromFile = async function() {
   console.log("Loading world from file...");
   try {
-    const [fileHandle] = await window.showOpenFilePicker({
-      types: [{
-        description: `${Game.name} Level File`,
-        accept: {'application/json': [`.${WorldIO.FILE_EXT}`]},
-      }]
+    Game.fileInput.accept = `.${WorldIO.FILE_EXT},application/json`;
+    Game.fileInput.multiple = false;
+
+    const file = await new Promise((resolve) => {
+      const onChange = () => {
+        const f = Game.fileInput.files && Game.fileInput.files[0];
+        Game.fileInput.value = "";
+        resolve(f || null);
+      };
+      Game.fileInput.addEventListener("change", onChange, { once: true });
+      Game.fileInput.click();
     });
-    const file = await fileHandle.getFile();
+
+    if (!file) return;
+
     const content = await file.text();
     const saveData = JSON.parse(content);
     const result = WorldIO.loadSaveData(saveData);
@@ -310,17 +446,17 @@ WorldIO.loadFromFile = async function() {
       }
     }
   }
-}
+};
 
 WorldIO.autosave = function() {
   const saveData = WorldIO.getSaveData();
-  localStorage.setItem(`${Game.id}.autosave`, JSON.stringify(saveData));
+  localStorage.setItem(`${Game.id}.autosave`, WorldIO.encodeLevel(saveData));
 }
 
 WorldIO.loadAutosave = function() {
   const autosave = localStorage.getItem(`${Game.id}.autosave`);
   if (autosave) {
-    const saveData = JSON.parse(autosave);
+    const saveData = WorldIO.decodeLevel(autosave) ?? JSON.parse(autosave);
     WorldIO.loadSaveData(saveData);
     console.log('Loaded autosave.')
   } else {

@@ -6,6 +6,10 @@ export const Game = {
   id: 'hopkit',
   /** @type {HTMLCanvasElement} */
   canvas: null,
+  /** @type {HTMLInputElement} */
+  textInput: null,
+  /** @type {HTMLInputElement} */
+  fileInput: null,
   /** @type {CanvasRenderingContext2D} */
   ctx: null,
   lastTimestamp: 0,

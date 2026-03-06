@@ -3,7 +3,7 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Hopkit</title>
-<link rel="icon" href="/projects/hopkit/icon.png" type="image/png">
+<link rel="icon" href="./icon.png" type="image/png">
 <style>
 body {
   margin: 0;
@@ -21,9 +21,24 @@ canvas {
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
+input {
+  visibility: hidden;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: block;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  z-index: -100;
+}
 </style>
 </head>
 <body>
+  <input type="text" id="textInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+<input type="file" id="fileInput">
 <canvas id="gameCanvas"></canvas>
 <script src="code/init.js" type="module"></script>
 </body>

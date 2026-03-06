@@ -43,6 +43,10 @@ GameplayState.readyGameplay = function() {
       }
     }
   }
+  // spawn player at 0,0 if no player
+  if (!World.mainPlayer) {
+    World.addEntity(new Game.entities.player.class(World.spawnPos.times(World.TILE_SIZE)));
+  }
 };
 
 GameplayState.destroyGameplay = function() {

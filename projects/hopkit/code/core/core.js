@@ -23,6 +23,8 @@ Core.init = function() {
   EventBus.on('worldio:load_from_file', WorldIO.loadFromFile);
   EventBus.on('worldio:autosave', WorldIO.autosave);
   EventBus.on('worldio:load_autosave', WorldIO.loadAutosave);
+  EventBus.on('worldio:copy_level_code', WorldIO.copyLevelCode);
+  EventBus.on('worldio:load_from_code', WorldIO.loadFromCode);
 
   // register states
   StateManager.register('main_menu', MainMenuState);
@@ -46,6 +48,9 @@ Core.init = function() {
   InputManager.addKeybind('editorZoomIn', ['Equal'])
   InputManager.addKeybind('editorZoomOut', ['Minus'])
   InputManager.addKeybind('editorToggleGrid', ['KeyG'])
+  InputManager.addKeybind('exitMenu', ['Escape'])
+  InputManager.addKeybind('frameByFrame', ['KeyP'])
+  InputManager.addKeybind('stepFrame', ['KeyO'])
 
   // register entities
   Entities.register();
@@ -111,4 +116,9 @@ Core.update = function(dt) {
   Game.setCursor('default');
   
   StateManager.update(Game.dt);
+
+  Game.inputsClicked = {};
+  Game.inputsReleased = {};
+  Game.keybindsClicked = {};
+  Game.keybindsReleased = {};
 }
