@@ -38,7 +38,7 @@ Core.init = function() {
   // setup keybinds
   InputManager.addKeybind('moveLeft', ['KeyA','ArrowLeft'])
   InputManager.addKeybind('moveRight', ['KeyD','ArrowRight'])
-  InputManager.addKeybind('jump', ['KeyW','ArrowUp'])
+  InputManager.addKeybind('jump', ['KeyW','ArrowUp','Space'])
   InputManager.addKeybind('crouch', ['KeyS','ArrowDown'])
   InputManager.addKeybind('attack', ['KeyX','KeyK'])
   InputManager.addKeybind('editorCamLeft', ['KeyA','ArrowLeft'])
