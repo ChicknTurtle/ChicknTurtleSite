@@ -1,0 +1,12 @@
+{
+  "name": "hopkit",
+  "displayName": "Hopkit",
+  "version": "0.0.0",
+  "main": "index.html",
+  "window": {
+    "width": 960,
+    "height": 720
+  },
+  "chromium-args": "",
+  "dev": true
+}

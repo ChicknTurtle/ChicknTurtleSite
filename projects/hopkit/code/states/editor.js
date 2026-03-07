@@ -168,20 +168,21 @@ Editor.update = function(dt) {
     if (Game.inputsClicked['pan']) {
       EventBus.emit('editor:pan', { delta: Game.inputsClicked['pan'] });
     }
-    if (Game.keybinds['editorCamUp']) EventBus.emit('editor:pan', { delta: new Vec2(0,4) });
-    if (Game.keybinds['editorCamDown']) EventBus.emit('editor:pan', { delta: new Vec2(0,-4) });
-    if (Game.keybinds['editorCamLeft']) EventBus.emit('editor:pan', { delta: new Vec2(4,0) });
-    if (Game.keybinds['editorCamRight']) EventBus.emit('editor:pan', { delta: new Vec2(-4,0) });
+    const panSpeed = 400*dt;
+    if (Game.keybinds['editorCamUp']) EventBus.emit('editor:pan', { delta: new Vec2(0,panSpeed) });
+    if (Game.keybinds['editorCamDown']) EventBus.emit('editor:pan', { delta: new Vec2(0,-panSpeed) });
+    if (Game.keybinds['editorCamLeft']) EventBus.emit('editor:pan', { delta: new Vec2(panSpeed,0) });
+    if (Game.keybinds['editorCamRight']) EventBus.emit('editor:pan', { delta: new Vec2(-panSpeed,0) });
 
     // zoom
     if (Game.inputsClicked['scroll']) {
       EventBus.emit('editor:zoom', { amount: Game.inputsClicked['scroll'], pos: Game.mousePos });
     }
     if (Game.keybinds['editorZoomIn']) {
-      EventBus.emit('editor:zoom', { amount: -8, pos: new Vec2(Game.canvas.width/2*(1/Game.dpr),Game.canvas.height/2*(1/Game.dpr)) });
+      EventBus.emit('editor:zoom', { amount: -400*dt, pos: new Vec2(Game.canvas.width/2*(1/Game.dpr),Game.canvas.height/2*(1/Game.dpr)) });
     }
     if (Game.keybinds['editorZoomOut']) {
-      EventBus.emit('editor:zoom', { amount: 8, pos: new Vec2(Game.canvas.width/2*(1/Game.dpr),Game.canvas.height/2*(1/Game.dpr)) });
+      EventBus.emit('editor:zoom', { amount: 400*dt, pos: new Vec2(Game.canvas.width/2*(1/Game.dpr),Game.canvas.height/2*(1/Game.dpr)) });
     }
   }
 

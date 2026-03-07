@@ -5,6 +5,12 @@ import { Core } from "./core/core.js"
 import { Renderer } from "./core/rendering.js"
 
 async function init() {
+  if (Game.isDev) {
+    console.log("Running in dev mode");
+    nw.Window.get().showDevTools();
+    Game.debugToggles['debugText'] = true;
+  }
+
   Game.canvas = document.getElementById('gameCanvas');
   Game.textInput = document.getElementById('textInput');
   Game.fileInput = document.getElementById('fileInput');
@@ -18,15 +24,17 @@ async function init() {
   requestAnimationFrame(update);
 }
 
-function update(timestamp) {
+function update() {
   requestAnimationFrame(update);
   const frameStart = performance.now();
 
-  const actualDt = (timestamp - Game.lastTimestamp) / 1000;
-  Game.dt = Math.min((1/30), actualDt);
-  Game.fps = 1 / actualDt;
-  Game.lastTimestamp = timestamp;
-  Game.gameTime += actualDt;
+  const now = performance.now();
+  let dt = (now - Game.lastTimestamp) / 1000;
+  Game.lastTimestamp = now;
+  if (dt <= 0) return;
+  Game.dt = Math.min(dt, 1/30);
+  Game.fps = 1 / dt;
+  Game.gameTime += dt;
 
   if (Game.keybindsClicked['stepFrame'] || !Game.keybinds['frameByFrame']) {
     Core.update(Game.dt);

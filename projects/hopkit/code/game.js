@@ -4,6 +4,7 @@ import { Vec2 } from "./utils/lib.js"
 export const Game = {
   name: 'Hopkit',
   id: 'hopkit',
+  isDev: (typeof nw !== "undefined" && nw.App.manifest.dev === true),
   /** @type {HTMLCanvasElement} */
   canvas: null,
   /** @type {HTMLInputElement} */

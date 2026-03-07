@@ -66,7 +66,7 @@ export class PlayerEntity extends PhysicsEntity {
     this.runFPS = 8;
     this.runFrames = 4;
 
-    this.EPS_RESOLVE = 0.01;
+    this.cornerClipDistance = 4;
 
     // trackers
     this.swipeTime = 0;

@@ -5,7 +5,7 @@ import { LZString } from "./../lib/lz-string.js";
 
 export const WorldIO = {
   version: 2,
-  FILE_EXT: 'json',
+  FILE_EXT: 'hopkit',
 
   _rleEncode(arr) {
     if (!arr || !arr.length) return [];
@@ -392,16 +392,17 @@ WorldIO.loadFromCode = function() {
   }
 }
 
+
 WorldIO.saveToFile = function() {
   console.log("Saving world to file...");
   try {
     const saveData = WorldIO.getSaveData();
-    const jsonData = JSON.stringify(saveData);
-    const blob = new Blob([jsonData], { type: 'application/json' });
+    const code = WorldIO.encodeLevel(saveData);
+    const blob = new Blob([code], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${Game.id}_level.${WorldIO.FILE_EXT}`;
+    a.download = `level.${WorldIO.FILE_EXT}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -409,14 +410,13 @@ WorldIO.saveToFile = function() {
   } catch (err) {
     throw err;
   }
-}
+};
 
 WorldIO.loadFromFile = async function() {
   console.log("Loading world from file...");
   try {
-    Game.fileInput.accept = `.${WorldIO.FILE_EXT},application/json`;
+    Game.fileInput.accept = `.${WorldIO.FILE_EXT},application/json,text/plain`;
     Game.fileInput.multiple = false;
-
     const file = await new Promise((resolve) => {
       const onChange = () => {
         const f = Game.fileInput.files && Game.fileInput.files[0];
@@ -426,11 +426,19 @@ WorldIO.loadFromFile = async function() {
       Game.fileInput.addEventListener("change", onChange, { once: true });
       Game.fileInput.click();
     });
-
     if (!file) return;
-
-    const content = await file.text();
-    const saveData = JSON.parse(content);
+    const contentRaw = await file.text();
+    const content = String(contentRaw || "").trim();
+    let saveData = null;
+    try {
+      saveData = WorldIO.decodeLevel(content);
+      console.log("Loaded saveData as level code");
+    } catch (err) {
+      console.debug("Failed to decode saveData as level code, trying as JSON...");
+    }
+    if (!saveData) {
+      saveData = JSON.parse(content);
+    }
     const result = WorldIO.loadSaveData(saveData);
     if (result !== true) {
       alert(`Failed to load world from file: ${result}`);
@@ -438,13 +446,10 @@ WorldIO.loadFromFile = async function() {
       WorldIO.autosave();
     }
   } catch (error) {
-    if (error.name !== 'AbortError') {
-      if (error.name === 'SyntaxError') {
-        alert("Failed to load world from file: not a valid json file");
-      } else {
-        alert(`Failed to load world from file: ${error}`);
-      }
-    }
+    if (error && error.name === 'AbortError') return;
+    const msg = (error && error.message) ? error.message : String(error);
+    alert(`Failed to load world from file: ${msg}`);
+    console.error("loadFromFile error:", error);
   }
 };
 
