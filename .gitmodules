@@ -1,0 +1,3 @@
+[submodule "projects/hopkit"]
+	path = projects/hopkit
+	url = https://github.com/ChicknTurtle/Hopkit.git
