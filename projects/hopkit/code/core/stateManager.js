@@ -29,4 +29,10 @@ export const StateManager = {
       this.states[this.current].update(dt);
     }
   },
+
+  draw(ctx) {
+    if (this.current && this.states[this.current] && this.states[this.current].draw) {
+      this.states[this.current].draw(ctx);
+    }
+  },
 };

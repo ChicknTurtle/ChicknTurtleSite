@@ -14,8 +14,6 @@ export const Renderer = {}
 Renderer.draw = function(ctx) {
   ctx.imageSmoothingEnabled = false;
 
-  EventBus.emit('render:frame:before', { ctx });
-
   // background
   //ctx.fillStyle = 'rgb(21,24,39)';
   ctx.fillStyle = '#00396d';
@@ -25,41 +23,7 @@ Renderer.draw = function(ctx) {
   // resize
   ctx.setTransform(Game.dpr, 0, 0, Game.dpr, 0, 0);
 
-  const state = StateManager.current;
-
-  // draw world
-  EventBus.emit('render:world:before', { ctx, state });
-
-  if (state === 'main_menu' || state === 'editor' || state === 'gameplay' || state === 'editor_gameplay') {
-    ctx.save();
-    ctx.scale(World.cam.zoom, World.cam.zoom);
-    ctx.translate(-World.cam.pos.x, -World.cam.pos.y);
-    WorldRenderer.draw(ctx);
-    EventBus.emit('render:world:after', { ctx, state });
-    ctx.restore();
-  } else {
-    EventBus.emit('render:world:after', { ctx, state });
-  }
-
-  // draw ui
-
-  EventBus.emit('render:ui:before', { ctx, state });
-
-  if (state === 'main_menu') {
-    if (UI.managers.main_menu) UI.managers.main_menu.draw(ctx);
-    EventBus.emit('render:ui:main_menu', { ctx });
-  } else if (state === 'editor') {
-    EventBus.emit('render:ui:editor', { ctx });
-    Editor.draw(ctx);
-  } else if (state === 'gameplay') {
-    if (UI.managers.gameplay) UI.managers.gameplay.draw(ctx);
-    EventBus.emit('render:ui:gameplay', { ctx });
-  } else if (state === 'editor_gameplay') {
-    if (UI.managers.editor_gameplay) UI.managers.editor_gameplay.draw(ctx);
-    EventBus.emit('render:ui:editor_gameplay', { ctx });
-  }
-
-  EventBus.emit('render:ui:after', { ctx, state });
+  StateManager.draw(ctx);
 
   if (Game.debugToggles['debugText']) {
     ctx.textAlign = 'left';
@@ -73,6 +37,4 @@ Renderer.draw = function(ctx) {
       text.draw(ctx, new Vec2(10, i*20+20));
     }
   }
-
-  EventBus.emit('render:frame:after', { ctx });
 }

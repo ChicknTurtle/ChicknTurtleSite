@@ -79,3 +79,15 @@ GameplayState.update = function(dt) {
 
   World.entities.forEach(e => e.update(dt));
 }
+
+GameplayState.draw = function(ctx) {
+  // world
+  ctx.save();
+  ctx.scale(World.cam.zoom, World.cam.zoom);
+  ctx.translate(-World.cam.pos.x, -World.cam.pos.y);
+  WorldRenderer.draw(ctx);
+  ctx.restore();
+
+  // ui
+  UI.managers.gameplay.draw(ctx)
+}

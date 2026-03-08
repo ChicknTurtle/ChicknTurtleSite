@@ -1,6 +1,7 @@
 
 import { EventBus } from "../core/eventBus.js"
 import { World } from "../world/world.js"
+import { WorldRenderer } from "../world/rendering.js"
 import { UI } from "../ui/ui.js"
 import { GameplayState } from "./gameplay.js"
 import { EditorElements } from "../ui/editor.js"
@@ -39,4 +40,16 @@ EditorGameplayState.update = function(dt) {
   UI.managers.editor_gameplay.tick();
 
   World.entities.forEach(e => e.update(dt));
+}
+
+EditorGameplayState.draw = function(ctx) {
+  // world
+  ctx.save();
+  ctx.scale(World.cam.zoom, World.cam.zoom);
+  ctx.translate(-World.cam.pos.x, -World.cam.pos.y);
+  WorldRenderer.draw(ctx);
+  ctx.restore();
+
+  // ui
+  UI.managers.editor_gameplay.draw(ctx)
 }

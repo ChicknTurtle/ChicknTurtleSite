@@ -5,12 +5,6 @@ import { Core } from "./core/core.js"
 import { Renderer } from "./core/rendering.js"
 
 async function init() {
-  if (Game.isDev) {
-    console.log("Running in dev mode");
-    nw.Window.get().showDevTools();
-    Game.debugToggles['debugText'] = true;
-  }
-
   Game.canvas = document.getElementById('gameCanvas');
   Game.textInput = document.getElementById('textInput');
   Game.fileInput = document.getElementById('fileInput');
@@ -18,6 +12,16 @@ async function init() {
   Game.dpr = window.devicePixelRatio || 1;
 
   await Assets.load();
+
+  Game.manifest = Game.jsons['manifest'];
+
+  if (Game.manifest.dev === true) {
+    console.log("Running in dev mode");
+    Game.debugToggles['debugText'] = true;
+    if (Game.isApp) {
+      nw.Window.get().showDevTools();
+    }
+  }
 
   Core.init();
 

@@ -10,7 +10,7 @@ export class CoinEntity extends Entity {
     }
     draw(ctx) {
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(Game.textures['coins'], 0, 0, 16, 16, this.pos.x, this.pos.y, this.size.x, this.size.y);
+        ctx.drawImage(Game.textures['entities'], 0, 0, 16, 16, this.pos.x, this.pos.y, this.size.x, this.size.y);
         WorldUtils.drawHitbox(ctx, this.pos, this.size, 'red');
     }
 }

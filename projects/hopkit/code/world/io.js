@@ -455,11 +455,11 @@ WorldIO.loadFromFile = async function() {
 
 WorldIO.autosave = function() {
   const saveData = WorldIO.getSaveData();
-  localStorage.setItem(`${Game.id}.autosave`, WorldIO.encodeLevel(saveData));
+  localStorage.setItem(`${Game.manifest.name}.autosave`, WorldIO.encodeLevel(saveData));
 }
 
 WorldIO.loadAutosave = function() {
-  const autosave = localStorage.getItem(`${Game.id}.autosave`);
+  const autosave = localStorage.getItem(`${Game.manifest.name}.autosave`);
   if (autosave) {
     const saveData = WorldIO.decodeLevel(autosave) ?? JSON.parse(autosave);
     WorldIO.loadSaveData(saveData);

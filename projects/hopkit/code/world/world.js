@@ -21,6 +21,7 @@ export const World = {
     "emerald": { pos:new Vec2(7,0), layer:1, solid:true },
     "hard_block": { pos:new Vec2(8,0), layer:1, solid:true },
     "solid_block": { pos:new Vec2(9,0), layer:1, solid:true },
+    "crate": { pos:new Vec2(10,0), layer:1, solid:true },
     "bush": { pos:new Vec2(0,2), layer:1 },
     "spike": { pos:new Vec2(0,3), layer:1, damages:true, hitbox: { x1: 0.125, y1: 0.125, x2: 0.875, y2: 0.875 } },
     "floor_spike": { pos:new Vec2(1,3), layer:1, damages:true, hitbox: { x1: 0.125, y1: 0.25, x2: 0.875, y2: 1 } },

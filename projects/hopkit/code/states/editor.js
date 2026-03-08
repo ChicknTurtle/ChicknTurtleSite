@@ -4,6 +4,7 @@ import { Game } from "../game.js"
 import { EventBus } from "../core/eventBus.js"
 import { World } from "../world/world.js"
 import { WorldUtils } from "../world/utils.js"
+import { WorldRenderer } from "../world/rendering.js"
 import { UI } from "../ui/ui.js"
 import { EditorElements } from "../ui/editor.js"
 
@@ -28,6 +29,7 @@ export const Editor = {
     { type:'tile', id:'ruby' },
     { type:'tile', id:'diamond' },
     { type:'tile', id:'emerald' },
+    { type:'tile', id:'crate' },
     { type:'tile', id:'bush' },
     { type:'tile', id:'spike' },
     { type:'tile', id:'floor_spike' },
@@ -267,15 +269,21 @@ Editor.update = function(dt) {
 }
 
 Editor.draw = function(ctx) {
-  const canvas = Game.canvas;
+  // world
+  ctx.save();
+  ctx.scale(World.cam.zoom, World.cam.zoom);
+  ctx.translate(-World.cam.pos.x, -World.cam.pos.y);
+  WorldRenderer.draw(ctx);
+  ctx.restore();
+  
   // palette bg
   ctx.fillStyle = 'rgba(200,200,200,0.5)';
-  ctx.fillRect(0, 0, canvas.width*(1/Game.dpr), Editor.SIDEBAR_HEIGHT);
+  ctx.fillRect(0, 0, Game.canvas.width*(1/Game.dpr), Editor.SIDEBAR_HEIGHT);
   // sidebar bg
   ctx.fillStyle = 'rgba(100,100,100,0.5)';
-  ctx.fillRect(canvas.width*(1/Game.dpr)-Editor.SIDEBAR_WIDTH, Editor.SIDEBAR_HEIGHT, Editor.SIDEBAR_WIDTH, 3);
+  ctx.fillRect(Game.canvas.width*(1/Game.dpr)-Editor.SIDEBAR_WIDTH, Editor.SIDEBAR_HEIGHT, Editor.SIDEBAR_WIDTH, 3);
   ctx.fillStyle = 'rgba(200,200,200,0.5)';
-  ctx.fillRect(canvas.width*(1/Game.dpr)-Editor.SIDEBAR_WIDTH, Editor.SIDEBAR_HEIGHT+3, Editor.SIDEBAR_WIDTH, canvas.height*(1/Game.dpr)-Editor.SIDEBAR_HEIGHT-3);
+  ctx.fillRect(Game.canvas.width*(1/Game.dpr)-Editor.SIDEBAR_WIDTH, Editor.SIDEBAR_HEIGHT+3, Editor.SIDEBAR_WIDTH, Game.canvas.height*(1/Game.dpr)-Editor.SIDEBAR_HEIGHT-3);
   // ui
   UI.managers.editor.draw(ctx);
 }

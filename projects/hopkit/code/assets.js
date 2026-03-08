@@ -6,10 +6,11 @@ export const Assets = {}
 Assets.load = async function() {
   Game.loading = [0,0];
   await Assets.loadAssets([
+    { type:'json', name:'manifest', src:'package.json' },
     { type:'texture', name:'editor', src:'assets/textures/editor.png' },
     { type:'texture', name:'tiles', src:'assets/textures/tiles.png' },
     { type:'texture', name:'player', src:'assets/textures/player.png' },
-    { type:'texture', name:'coins', src:'assets/textures/coins.png' },
+    { type:'texture', name:'entities', src:'assets/textures/entities.png' },
     { type:'texture', name:'entityIcons', src:'assets/textures/entityIcons.png' },
     { type:'font', name:'Pixellari', src:'assets/fonts/Pixellari.ttf' },
     { type:'font', name:'DigitalDisco', src:'assets/fonts/DigitalDisco.ttf' },
@@ -44,6 +45,18 @@ Assets.loadFont = function(name, src) {
   });
 }
 
+Assets.loadJson = function(name, src) {
+  return new Promise((resolve, reject) => {
+    fetch(src).then(response => {
+      if (!response.ok) throw new Error(`Failed to load JSON: ${src}`);
+      return response.json();
+    }).then(json => {
+      Game.jsons[name] = json;
+      resolve(json);
+    }).catch(reject);
+  });
+}
+
 Assets.loadAssets = async function(assetList) {
   let loaded = 0;
   const total = assetList.length;
@@ -56,6 +69,9 @@ Assets.loadAssets = async function(assetList) {
         break;
       case 'font':
         loader = Assets.loadFont(asset.name, asset.src);
+        break;
+      case 'json':
+        loader = Assets.loadJson(asset.name, asset.src);
         break;
       default:
         Game.loadingText = 'Assets failed to load, reload or check console';

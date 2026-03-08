@@ -1,10 +1,6 @@
-
-import { Vec2 } from "./utils/lib.js"
-
 export const Game = {
-  name: 'Hopkit',
-  id: 'hopkit',
-  isDev: (typeof nw !== "undefined" && nw.App.manifest.dev === true),
+  manifest: null,
+  isApp: (typeof nw !== "undefined"),
   /** @type {HTMLCanvasElement} */
   canvas: null,
   /** @type {HTMLInputElement} */
@@ -39,6 +35,7 @@ export const Game = {
   loadingText: "",
   textures: {},
   fonts: {},
+  jsons: {},
   debugToggles: [],
   ignoreNextDebugToggle: false,
   entities: {},
